@@ -11,7 +11,7 @@ import SwiftUI
 struct OpalApp: App {
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            VaultView()
         }
     }
 }
