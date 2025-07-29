@@ -6,8 +6,14 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		7EB161FD2E3747C600292DD6 /* SMBClient in Frameworks */ = {isa = PBXBuildFile; productRef = 7EB161FC2E3747C600292DD6 /* SMBClient */; };
+		7EB162282E3836D200292DD6 /* FlyingFox in Frameworks */ = {isa = PBXBuildFile; productRef = 7EB162272E3836D200292DD6 /* FlyingFox */; };
+		7EB1622A2E3836D200292DD6 /* FlyingSocks in Frameworks */ = {isa = PBXBuildFile; productRef = 7EB162292E3836D200292DD6 /* FlyingSocks */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
-		7EB161E12E37049B00292DD6 /* Opal.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Opal.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		7EB161E12E37049B00292DD6 /* Opal.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; name = Opal.app; path = "/Users/harrisonleach/Developer/Opal/build/Debug-iphoneos/Opal.app"; sourceTree = "<absolute>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -23,6 +29,9 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				7EB161FD2E3747C600292DD6 /* SMBClient in Frameworks */,
+				7EB1622A2E3836D200292DD6 /* FlyingSocks in Frameworks */,
+				7EB162282E3836D200292DD6 /* FlyingFox in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -33,16 +42,7 @@
 			isa = PBXGroup;
 			children = (
 				7EB161E32E37049B00292DD6 /* Opal */,
-				7EB161E22E37049B00292DD6 /* Products */,
 			);
-			sourceTree = "<group>";
-		};
-		7EB161E22E37049B00292DD6 /* Products */ = {
-			isa = PBXGroup;
-			children = (
-				7EB161E12E37049B00292DD6 /* Opal.app */,
-			);
-			name = Products;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -65,6 +65,9 @@
 			);
 			name = Opal;
 			packageProductDependencies = (
+				7EB161FC2E3747C600292DD6 /* SMBClient */,
+				7EB162272E3836D200292DD6 /* FlyingFox */,
+				7EB162292E3836D200292DD6 /* FlyingSocks */,
 			);
 			productName = Opal;
 			productReference = 7EB161E12E37049B00292DD6 /* Opal.app */;
@@ -94,8 +97,12 @@
 			);
 			mainGroup = 7EB161D82E37049A00292DD6;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				7EB161FB2E3747C600292DD6 /* XCRemoteSwiftPackageReference "SMBClient" */,
+				7EB162262E3836D200292DD6 /* XCRemoteSwiftPackageReference "FlyingFox" */,
+			);
 			preferredProjectObjectVersion = 77;
-			productRefGroup = 7EB161E22E37049B00292DD6 /* Products */;
+			productRefGroup = 7EB161D82E37049A00292DD6;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -324,6 +331,43 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		7EB161FB2E3747C600292DD6 /* XCRemoteSwiftPackageReference "SMBClient" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/kishikawakatsumi/SMBClient";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.3.1;
+			};
+		};
+		7EB162262E3836D200292DD6 /* XCRemoteSwiftPackageReference "FlyingFox" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/swhitty/FlyingFox.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.24.1;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		7EB161FC2E3747C600292DD6 /* SMBClient */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 7EB161FB2E3747C600292DD6 /* XCRemoteSwiftPackageReference "SMBClient" */;
+			productName = SMBClient;
+		};
+		7EB162272E3836D200292DD6 /* FlyingFox */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 7EB162262E3836D200292DD6 /* XCRemoteSwiftPackageReference "FlyingFox" */;
+			productName = FlyingFox;
+		};
+		7EB162292E3836D200292DD6 /* FlyingSocks */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 7EB162262E3836D200292DD6 /* XCRemoteSwiftPackageReference "FlyingFox" */;
+			productName = FlyingSocks;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 7EB161D92E37049A00292DD6 /* Project object */;
 }
