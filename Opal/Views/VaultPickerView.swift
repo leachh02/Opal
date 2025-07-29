@@ -10,6 +10,9 @@ import SMBClient
 struct VaultPickerView: View {
     let treeAccessor: TreeAccessor
     let path: String
+    
+    @EnvironmentObject var appState: AppState
+    @Environment(\.dismiss) var dismiss
 
     @State private var files: [File] = []
     @State private var isLoading = true
@@ -29,7 +32,16 @@ struct VaultPickerView: View {
                 }
             }
         }
-        .navigationTitle(path.isEmpty ? "Vault" : URL(fileURLWithPath: path).lastPathComponent)
+        .navigationTitle(path.isEmpty ? "Choose Vault" : URL(fileURLWithPath: path).lastPathComponent)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button("Open") {
+                    appState.treeAccessor = treeAccessor
+                    appState.currentVaultPath = path
+                }
+                .disabled(!isValidVault)
+            }
+        }
         .overlay {
             if isLoading {
                 ProgressView("Loading...")
@@ -44,6 +56,11 @@ struct VaultPickerView: View {
             await loadDirectory()
         }
     }
+    
+    private var isValidVault: Bool {
+            // Optional: add your own logic to restrict invalid vault selections
+            true
+        }
 
     private func loadDirectory() async {
         do {
