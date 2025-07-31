@@ -14,12 +14,25 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		7EB161E12E37049B00292DD6 /* Opal.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; name = Opal.app; path = "/Users/harrisonleach/Developer/Opal/build/Debug-iphoneos/Opal.app"; sourceTree = "<absolute>"; };
+		7EB162532E3AEBC000292DD6 /* Opal.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Opal.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		7EB162962E3AFEE700292DD6 /* Exceptions for "Opal" folder in "Opal" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 7EB161E02E37049B00292DD6 /* Opal */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		7EB161E32E37049B00292DD6 /* Opal */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				7EB162962E3AFEE700292DD6 /* Exceptions for "Opal" folder in "Opal" target */,
+			);
 			path = Opal;
 			sourceTree = "<group>";
 		};
@@ -44,6 +57,7 @@
 			isa = PBXGroup;
 			children = (
 				7EB161E32E37049B00292DD6 /* Opal */,
+				7EB162532E3AEBC000292DD6 /* Opal.app */,
 			);
 			sourceTree = "<group>";
 		};
@@ -73,7 +87,7 @@
 				7EB1624F2E38B2DC00292DD6 /* MarkdownUI */,
 			);
 			productName = Opal;
-			productReference = 7EB161E12E37049B00292DD6 /* Opal.app */;
+			productReference = 7EB162532E3AEBC000292DD6 /* Opal.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -267,6 +281,8 @@
 				DEVELOPMENT_TEAM = 8RSAFN4U5T;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Opal/Info.plist;
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Opal connects to your local network to discover devices.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -295,6 +311,8 @@
 				DEVELOPMENT_TEAM = 8RSAFN4U5T;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Opal/Info.plist;
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Opal connects to your local network to discover devices.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
