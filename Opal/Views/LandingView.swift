@@ -9,16 +9,24 @@
 import SwiftUI
 
 struct LandingView: View {
+    @State private var showConnectSheet = false
     var body: some View {
-        NavigationView {
-            VStack(spacing: 20) {
-                Text("Welcome to Opal")
-                    .font(.largeTitle)
+        VStack() {
+            Text("Welcome to Opal")
+                .font(.largeTitle)
 
-                NavigationLink("Connect to Server", destination: ConnectToServerView())
-                    .buttonStyle(.borderedProminent)
+            Button("Connect to Server"){
+                showConnectSheet = true
             }
-            .padding()
+                .buttonStyle(.borderedProminent)
+                .sheet(isPresented: $showConnectSheet) {
+                    ConnectToServerView()
+                }
         }
+        .padding()
     }
+}
+
+#Preview {
+    LandingView()
 }
