@@ -1,5 +1,5 @@
 //
-//  VaultPickerView.swift
+//  SelectVaultView.swift
 //  Opal
 //
 //  Created by Harrison Leach on 29/7/2025.
@@ -7,7 +7,7 @@
 import SwiftUI
 import SMBClient
 
-struct VaultPickerView: View {
+struct SelectVaultView: View {
     let treeAccessor: TreeAccessor
     let path: String
     
@@ -17,15 +17,14 @@ struct VaultPickerView: View {
     @State private var files: [File] = []
     @State private var isLoading = true
     @State private var error: String?
+    @State private var isObsidianVault = false
 
     var body: some View {
         List {
             ForEach(Array(files.enumerated()), id: \.offset) { index, file in
                 NavigationLink {
                     if file.isDirectory {
-                        VaultPickerView(treeAccessor: treeAccessor, path: fullPath(for: file))
-                    } else {
-//                        MarkdownEditorView(treeAccessor: treeAccessor, path: fullPath(for: file))
+                        SelectVaultView(treeAccessor: treeAccessor, path: fullPath(for: file))
                     }
                 } label: {
                     Label(file.name, systemImage: file.isDirectory ? "folder" : "doc.text")
@@ -58,13 +57,13 @@ struct VaultPickerView: View {
     }
     
     private var isValidVault: Bool {
-            // Optional: add your own logic to restrict invalid vault selections
-            true
+        return isObsidianVault
         }
 
     private func loadDirectory() async {
         do {
             var items = try await treeAccessor.listDirectory(path: path)
+            let isObsidianVault = items.contains { $0.name == ".obsidian" && $0.isDirectory }
             items = items
                 .filter { $0.name != "." && $0.name != ".." && !$0.isHidden }
                 .sorted {
@@ -76,6 +75,7 @@ struct VaultPickerView: View {
                 }
             self.files = items
             self.isLoading = false
+            self.isObsidianVault = isObsidianVault
         } catch {
             self.error = error.localizedDescription
             self.isLoading = false
