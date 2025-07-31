@@ -24,10 +24,12 @@ struct Server: Codable {
 
 extension Server: Hashable {
   static func == (lhs: Server, rhs: Server) -> Bool {
-    lhs.id == rhs.id
+    lhs.id == rhs.id || (lhs.server == rhs.server && lhs.port == rhs.port)
   }
 
   func hash(into hasher: inout Hasher) {
-    hasher.combine(id)
+      hasher.combine(id)
+      hasher.combine(server)
+      hasher.combine(port)
   }
 }
