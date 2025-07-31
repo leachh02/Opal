@@ -21,6 +21,7 @@ struct LandingView: View {
                 .buttonStyle(.borderedProminent)
                 .sheet(isPresented: $showConnectSheet) {
                     ConnectToServerView()
+                        .interactiveDismissDisabled(true)
                 }
         }
         .padding()
