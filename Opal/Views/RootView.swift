@@ -13,12 +13,15 @@ struct RootView: View {
 
     var body: some View {
         Group {
-            if let accessor = appState.treeAccessor {
+            if appState.vaultSelected {
                 VaultView()
             } else {
-                NavigationStack {
-                    LandingView()
-                }
+                LandingView()
+            }
+        }
+        .onAppear {
+            Task {
+                await appState.attemptAutoLogin()
             }
         }
     }

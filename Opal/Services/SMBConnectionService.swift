@@ -17,7 +17,7 @@ class SMBConnectionService: ObservableObject {
 
     private(set) var client: SMBClient?
 
-    func connect(host: String, port: String?, username: String, password: String, share: String) async {
+    func connect(host: String, port: String?, share: String, username: String, password: String, saveCredentials: Bool = true)   async {
         do {
             let smbClient: SMBClient
             if let port = port.flatMap(Int.init) {
@@ -27,6 +27,15 @@ class SMBConnectionService: ObservableObject {
             }
 
             try await smbClient.login(username: username, password: password)
+            
+            if saveCredentials {
+                CredentialStore.shared.save(
+                    server: host,
+                    securityDomain: share,
+                    username: username,
+                    password: password
+                )
+            }
 
             self.client = smbClient
             self.treeAccessor = smbClient.treeAccessor(share: share)
@@ -36,5 +45,9 @@ class SMBConnectionService: ObservableObject {
             self.isConnected = false
             self.error = error.localizedDescription
         }
+    }
+    
+    func loadStoredCredential(for host: String, share: String) -> Credential? {
+        return CredentialStore.shared.load(server: host, securityDomain: share)
     }
 }

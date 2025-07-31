@@ -35,6 +35,7 @@ struct SelectVaultView: View {
                 Button("Open") {
                     appState.treeAccessor = treeAccessor
                     appState.currentVaultPath = path
+                    appState.vaultSelected = true
                 }
                 .disabled(!isValidVault)
             }

@@ -11,6 +11,7 @@ import SMBClient
 
 struct ConnectToServerView: View {
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject var appState: AppState
     @StateObject var model = ServerDiscoveryModel()
     @StateObject private var connectionService = SMBConnectionService()
     @State private var displayName = ""
@@ -121,23 +122,23 @@ struct ConnectToServerView: View {
                 ToolbarItem(placement: .navigationBarTrailing){
                     Button("Connect") {
                         Task {
-                                await connectionService.connect(
-                                    host: host,
-                                    port: nil,
-                                    username: isRegistered ? username : "",
-                                    password: isRegistered ? password : "",
-                                    share: share
-                                )
+                            appState.displayName = displayName.isEmpty ? nil : displayName
+                            appState.host = host
+                            appState.share = share
+                            appState.port = port.isEmpty ? nil : port
+                            appState.username = username
+                            appState.password = password
+                            await appState.connect(isRegistered: isRegistered)
                                 
-                                if connectionService.isConnected {
-                                    let id = ID(UUID().uuidString)
-                                    ServerManager.shared.addServer(id: id, displayName: displayName, server: host, port: nil)
-                                    showVaultPicker = true
-                                } else {
-                                    // Handle connection failure
-                                    errorMessage = connectionService.error ?? "Failed to connect to server. Please check your credentials and network connection."
-                                    showErrorAlert = true
-                                }
+                            if appState.isLoggedIn {
+                                let id = ID(UUID().uuidString)
+                                ServerManager.shared.addServer(id: id, displayName: displayName, server: host, port: nil)
+                                showVaultPicker = true
+                            } else {
+                                // Handle connection failure
+                                errorMessage = connectionService.error ?? "Failed to connect to server. Please check your credentials and network connection."
+                                showErrorAlert = true
+                            }
                         }
                     }
                     .disabled(host.isEmpty || share.isEmpty || isRegistered && username.isEmpty)
@@ -149,7 +150,7 @@ struct ConnectToServerView: View {
                 Text(errorMessage)
             }
             .navigationDestination(isPresented: $showVaultPicker) {
-                if let accessor = connectionService.treeAccessor {
+                if let accessor = appState.treeAccessor {
                     SelectVaultView(treeAccessor: accessor, path: "")
                 } else {
                     EmptyView()
@@ -158,7 +159,7 @@ struct ConnectToServerView: View {
         }
     }
 }
-
+    
 #Preview {
     ConnectToServerView()
 }
