@@ -23,11 +23,9 @@ struct SelectVaultView: View {
         List {
             ForEach(Array(files.enumerated()), id: \.offset) { index, file in
                 NavigationLink {
-                    if file.isDirectory {
-                        SelectVaultView(treeAccessor: treeAccessor, path: fullPath(for: file))
-                    }
+                  SelectVaultView(treeAccessor: treeAccessor, path: fullPath(for: file))
                 } label: {
-                    Label(file.name, systemImage: file.isDirectory ? "folder" : "doc.text")
+                    Label(file.name, systemImage:"folder")
                 }
             }
         }
@@ -65,7 +63,7 @@ struct SelectVaultView: View {
             var items = try await treeAccessor.listDirectory(path: path)
             let isObsidianVault = items.contains { $0.name == ".obsidian" && $0.isDirectory }
             items = items
-                .filter { $0.name != "." && $0.name != ".." && !$0.isHidden }
+                .filter { $0.isDirectory && $0.name != "." && $0.name != ".." && !$0.isHidden }
                 .sorted {
                     if $0.isDirectory != $1.isDirectory {
                         return $0.isDirectory
