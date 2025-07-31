@@ -10,6 +10,7 @@
 		7EB161FD2E3747C600292DD6 /* SMBClient in Frameworks */ = {isa = PBXBuildFile; productRef = 7EB161FC2E3747C600292DD6 /* SMBClient */; };
 		7EB162282E3836D200292DD6 /* FlyingFox in Frameworks */ = {isa = PBXBuildFile; productRef = 7EB162272E3836D200292DD6 /* FlyingFox */; };
 		7EB1622A2E3836D200292DD6 /* FlyingSocks in Frameworks */ = {isa = PBXBuildFile; productRef = 7EB162292E3836D200292DD6 /* FlyingSocks */; };
+		7EB162502E38B2DC00292DD6 /* MarkdownUI in Frameworks */ = {isa = PBXBuildFile; productRef = 7EB1624F2E38B2DC00292DD6 /* MarkdownUI */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -32,6 +33,7 @@
 				7EB161FD2E3747C600292DD6 /* SMBClient in Frameworks */,
 				7EB1622A2E3836D200292DD6 /* FlyingSocks in Frameworks */,
 				7EB162282E3836D200292DD6 /* FlyingFox in Frameworks */,
+				7EB162502E38B2DC00292DD6 /* MarkdownUI in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -68,6 +70,7 @@
 				7EB161FC2E3747C600292DD6 /* SMBClient */,
 				7EB162272E3836D200292DD6 /* FlyingFox */,
 				7EB162292E3836D200292DD6 /* FlyingSocks */,
+				7EB1624F2E38B2DC00292DD6 /* MarkdownUI */,
 			);
 			productName = Opal;
 			productReference = 7EB161E12E37049B00292DD6 /* Opal.app */;
@@ -100,6 +103,7 @@
 			packageReferences = (
 				7EB161FB2E3747C600292DD6 /* XCRemoteSwiftPackageReference "SMBClient" */,
 				7EB162262E3836D200292DD6 /* XCRemoteSwiftPackageReference "FlyingFox" */,
+				7EB1624E2E38B2DC00292DD6 /* XCRemoteSwiftPackageReference "swift-markdown-ui" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 7EB161D82E37049A00292DD6;
@@ -349,6 +353,14 @@
 				minimumVersion = 0.24.1;
 			};
 		};
+		7EB1624E2E38B2DC00292DD6 /* XCRemoteSwiftPackageReference "swift-markdown-ui" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/gonzalezreal/swift-markdown-ui";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.4.1;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -366,6 +378,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 7EB162262E3836D200292DD6 /* XCRemoteSwiftPackageReference "FlyingFox" */;
 			productName = FlyingSocks;
+		};
+		7EB1624F2E38B2DC00292DD6 /* MarkdownUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 7EB1624E2E38B2DC00292DD6 /* XCRemoteSwiftPackageReference "swift-markdown-ui" */;
+			productName = MarkdownUI;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
