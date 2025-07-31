@@ -30,13 +30,17 @@ struct VaultView: View {
                             }
                         }
                     } else {
-                        HStack {
-                            Image(systemName: "doc")
-                            VStack(alignment: .leading) {
-                                Text(file.name)
-                                Text(ByteCountFormatter.string(fromByteCount: Int64(file.size), countStyle: .file))
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
+                        NavigationLink(
+                            destination: MarkdownEditorView(path: fullPath(for: file.name), treeAccessor: treeAccessor!)
+                        ) {
+                            HStack {
+                                Image(systemName: "doc")
+                                VStack(alignment: .leading) {
+                                    Text(file.name)
+                                    Text(ByteCountFormatter.string(fromByteCount: Int64(file.size), countStyle: .file))
+                                        .font(.caption)
+                                        .foregroundColor(.gray)
+                                }
                             }
                         }
                     }

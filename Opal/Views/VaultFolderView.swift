@@ -13,6 +13,10 @@ struct VaultFolderView: View {
 
     let path: String
     @State private var files: [File] = []
+    
+    private var treeAccessor: TreeAccessor? {
+            appState.treeAccessor
+        }
 
     var body: some View {
         List {
@@ -25,9 +29,18 @@ struct VaultFolderView: View {
                         }
                     }
                 } else {
-                    HStack {
-                        Image(systemName: "doc")
-                        Text(file.name)
+                    NavigationLink(
+                        destination: MarkdownEditorView(path: fullPath(for: file.name), treeAccessor: treeAccessor!)
+                    ) {
+                        HStack {
+                            Image(systemName: "doc")
+                            VStack(alignment: .leading) {
+                                Text(file.name)
+                                Text(ByteCountFormatter.string(fromByteCount: Int64(file.size), countStyle: .file))
+                                    .font(.caption)
+                                    .foregroundColor(.gray)
+                            }
+                        }
                     }
                 }
             }
