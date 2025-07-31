@@ -22,12 +22,8 @@ struct ConnectToServerView: View {
     @State private var isRegistered = false
     @State private var selectedServer: Server?
     @State private var showVaultPicker = false
-    @State private var useCustomPort = false
-    
-    // temp to be deleted
-    var savedServers = [
-        Server(id: ID(UUID().uuidString), displayName: "Synergy", server: "100.123.147.118", port: nil)
-    ]
+    @State private var showErrorAlert = false
+    @State private var errorMessage = ""
 
     var body: some View {
         NavigationStack {
@@ -58,6 +54,7 @@ struct ConnectToServerView: View {
                                 .foregroundColor(.primary)
                             TextField("Optional", text: $port)
                                 .multilineTextAlignment(.trailing)
+                                .keyboardType(.numberPad)
                         }
                     }
                     
@@ -87,7 +84,6 @@ struct ConnectToServerView: View {
                         }
                     }
                     
-                    // Server Lists
                     List {
                         if !model.discovered.isEmpty {
                             Section("Discovered Servers") {
@@ -113,22 +109,6 @@ struct ConnectToServerView: View {
                     }
                 }
                 .animation(.easeInOut(duration: 0.3), value: isRegistered)
-                
-                
-//                 Hidden NavigationLink for navigation
-                NavigationLink(
-                    destination: {
-                        if let accessor = connectionService.treeAccessor {
-                            AnyView(VaultPickerView(treeAccessor: accessor, path: ""))
-                        } else {
-                            AnyView(EmptyView())
-                        }
-                    }(),
-                    isActive: $showVaultPicker
-                ) {
-                    EmptyView()
-                }
-                .hidden()
             }
             .navigationTitle("Connect to Server")
             .navigationBarTitleDisplayMode(.inline)
@@ -141,29 +121,40 @@ struct ConnectToServerView: View {
                 ToolbarItem(placement: .navigationBarTrailing){
                     Button("Connect") {
                         Task {
-                            await connectionService.connect(
-                                host: host,
-                                port: nil,
-                                username: username,
-                                password: password,
-                                share: share
-                            )
-                            
-                            if connectionService.isConnected {
-                                let id = ID(UUID().uuidString)
-                                ServerManager.shared.addServer(id: id, displayName: displayName, server: host, port: nil)
-                                showVaultPicker = true
-                            }
+                                await connectionService.connect(
+                                    host: host,
+                                    port: nil,
+                                    username: isRegistered ? username : "",
+                                    password: isRegistered ? password : "",
+                                    share: share
+                                )
+                                
+                                if connectionService.isConnected {
+                                    let id = ID(UUID().uuidString)
+                                    ServerManager.shared.addServer(id: id, displayName: displayName, server: host, port: nil)
+                                    showVaultPicker = true
+                                } else {
+                                    // Handle connection failure
+                                    errorMessage = connectionService.error ?? "Failed to connect to server. Please check your credentials and network connection."
+                                    showErrorAlert = true
+                                }
                         }
                     }
-                    .disabled(host.isEmpty || share.isEmpty || isRegistered && (username.isEmpty || password.isEmpty))
+                    .disabled(host.isEmpty || share.isEmpty || isRegistered && username.isEmpty)
                 }
             }
-//            .navigationDestination(isPresented: $showVaultPicker, destination: {
-//                if let accessor = connectionService.treeAccessor {
-//                    AnyView(VaultPickerView(treeAccessor: accessor, path: ""))
-//                }
-//            }())
+            .alert("Connection Error", isPresented: $showErrorAlert) {
+                Button("OK") { }
+            } message: {
+                Text(errorMessage)
+            }
+            .navigationDestination(isPresented: $showVaultPicker) {
+                if let accessor = connectionService.treeAccessor {
+                    SelectVaultView(treeAccessor: accessor, path: "")
+                } else {
+                    EmptyView()
+                }
+            }
         }
     }
 }
