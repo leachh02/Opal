@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' file:; style-src 'self' 'unsafe-inline' file:; img-src data: blob: file:">
+<title>Opal Editor</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #ffffff;
+    --fg: #1c1c1e;
+    --muted: #8e8e93;
+    --accent: #7b5cd6;
+    --quote: #3a3a3c;
+    --rule: #d1d1d6;
+    --code-bg: #f2f2f7;
+    --highlight: rgba(255, 214, 10, 0.4);
+    --code-keyword: #ad3da4;
+    --code-string: #c41a16;
+    --code-number: #1c00cf;
+    --code-type: #3900a0;
+    --code-function: #326d74;
+    --mono: ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #000000;
+      --fg: #f2f2f7;
+      --muted: #8e8e93;
+      --accent: #a68bfa;
+      --quote: #d1d1d6;
+      --rule: #3a3a3c;
+      --code-bg: #1c1c1e;
+      --highlight: rgba(255, 214, 10, 0.3);
+      --code-keyword: #ff7ab2;
+      --code-string: #ff8170;
+      --code-number: #d9c97c;
+      --code-type: #dabaff;
+      --code-function: #78c2b3;
+    }
+  }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg); }
+  #editor, .cm-editor { height: 100%; }
+  .cm-editor { font: -apple-system-body; -webkit-text-size-adjust: 100%; }
+  .cm-editor .cm-scroller { font-family: -apple-system, system-ui, sans-serif; }
+  .cm-editor.cm-focused { outline: none; }
+  .cm-scroller { line-height: 1.5; overflow: auto; -webkit-overflow-scrolling: touch; }
+  .cm-content { padding: 16px max(16px, env(safe-area-inset-right)) 40vh max(16px, env(safe-area-inset-left)); caret-color: var(--accent); }
+  .cm-line { padding: 0; }
+
+  .cm-heading { font-weight: 700; }
+  .cm-h1 { font-size: 1.75em; line-height: 1.3; }
+  .cm-h2 { font-size: 1.45em; line-height: 1.3; }
+  .cm-h3 { font-size: 1.25em; }
+  .cm-h4 { font-size: 1.1em; }
+  .cm-h5, .cm-h6 { font-size: 1em; color: var(--muted); }
+
+  .cm-frontmatter { font-family: var(--mono); font-size: 0.85em; color: var(--muted); background: var(--code-bg); }
+
+  .cm-inline-code { font-family: var(--mono); font-size: 0.9em; background: var(--code-bg); border-radius: 4px; padding: 1px 3px; }
+  .cm-codeblock { font-family: var(--mono); font-size: 0.85em; background: var(--code-bg); padding: 0 12px !important; }
+  .cm-codeblock-begin { border-top-left-radius: 8px; border-top-right-radius: 8px; padding-top: 6px !important; }
+  .cm-codeblock-end { border-bottom-left-radius: 8px; border-bottom-right-radius: 8px; padding-bottom: 6px !important; }
+  .cm-code-lang { float: right; font-size: 0.8em; color: var(--muted); font-family: -apple-system, system-ui, sans-serif; }
+
+  .cm-blockquote { border-left: 3px solid var(--accent); padding-left: 12px !important; color: var(--quote); }
+  .cm-callout { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+  .cm-callout-title { font-weight: 600; }
+  .cm-callout-warning, .cm-callout-caution, .cm-callout-attention { --accent: #ff9f0a; }
+  .cm-callout-danger, .cm-callout-error, .cm-callout-bug, .cm-callout-failure { --accent: #ff453a; }
+  .cm-callout-success, .cm-callout-check, .cm-callout-done, .cm-callout-tip { --accent: #30d158; }
+  .cm-callout-label { font-weight: 600; color: var(--accent); }
+
+  .cm-bullet { color: var(--muted); display: inline-block; width: 1ch; text-align: center; }
+  .cm-task-checkbox {
+    display: inline-block; width: 1.05em; height: 1.05em; vertical-align: -0.15em;
+    border: 1.5px solid var(--muted); border-radius: 4px; box-sizing: border-box; cursor: pointer;
+  }
+  .cm-task-checked { background: var(--accent); border-color: var(--accent); position: relative; }
+  .cm-task-checked::after {
+    content: ""; position: absolute; left: 0.3em; top: 0.08em; width: 0.25em; height: 0.5em;
+    border: solid white; border-width: 0 2px 2px 0; transform: rotate(45deg);
+  }
+  .cm-task-done { color: var(--muted); text-decoration: line-through; }
+
+  .cm-hr { display: inline-block; width: 100%; height: 0; border-top: 1px solid var(--rule); vertical-align: middle; }
+  .cm-highlight { background: var(--highlight); border-radius: 2px; }
+  .cm-link, .cm-wikilink, .cm-url { color: var(--accent); }
+  .cm-link-rendered { text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--accent) 40%, transparent); }
+  .cm-tag { color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); border-radius: 10px; padding: 0 6px; }
+  .cm-embed { color: var(--accent); background: var(--code-bg); border-radius: 6px; padding: 1px 6px; font-size: 0.9em; }
+  .cm-embed::before { content: "↪ "; }
+  .cm-image::before { content: "🖼 "; }
+
+  .cm-table { font-family: var(--mono); font-size: 0.85em; white-space: pre; }
+  .cm-table-delimiter { color: var(--muted); }
+
+  .cm-tooltip-autocomplete { border-radius: 10px; overflow: hidden; border: 1px solid var(--rule) !important; background: var(--bg) !important; }
+  .cm-tooltip-autocomplete li[aria-selected] { background: var(--accent) !important; color: white !important; }
+</style>
+</head>
+<body>
+<div id="editor"></div>
+<script src="editor.js"></script>
+</body>
+</html>

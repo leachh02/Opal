@@ -1,0 +1,24 @@
+{
+  "name": "opal-editor",
+  "private": true,
+  "version": "0.1.0",
+  "description": "CodeMirror 6 live-preview Markdown editor bundled into the Opal iOS app",
+  "scripts": {
+    "build": "esbuild src/main.js --bundle --minify --format=iife --target=safari16 --outfile=../Opal/Resources/Editor/editor.js && cp src/editor.html ../Opal/Resources/Editor/editor.html"
+  },
+  "dependencies": {
+    "@codemirror/autocomplete": "^6.20.4",
+    "@codemirror/commands": "^6.11.1",
+    "@codemirror/lang-markdown": "^6.5.2",
+    "@codemirror/language": "^6.13.1",
+    "@codemirror/language-data": "^6.5.2",
+    "@codemirror/search": "^6.7.2",
+    "@codemirror/state": "^6.7.6",
+    "@codemirror/view": "^6.43.15",
+    "@lezer/highlight": "^1.2.5",
+    "@lezer/markdown": "^1.8.1"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2"
+  }
+}

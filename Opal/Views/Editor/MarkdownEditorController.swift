@@ -1,0 +1,156 @@
+//
+//  MarkdownEditorController.swift
+//  Opal
+//
+//  Owns the WKWebView that hosts the CodeMirror editor (EditorWeb/, bundled
+//  into Resources/Editor) and bridges it to Swift.
+//
+
+import Foundation
+import WebKit
+
+@MainActor
+final class MarkdownEditorController: NSObject, ObservableObject {
+    enum Mode: String {
+        case live
+        case source
+    }
+
+    /// Formatting commands understood by `window.opal.exec` in the editor.
+    enum Command: String {
+        case bold, italic, strikethrough, highlight, code, task, indent, outdent, undo, redo
+    }
+
+    @Published private(set) var isReady = false
+    /// The editor's latest text, updated shortly after each edit.
+    @Published private(set) var text = ""
+    @Published var mode: Mode = .live {
+        didSet { if mode != oldValue { call("window.opal.setMode(mode)", ["mode": mode.rawValue]) } }
+    }
+
+    var onOpenWikiLink: ((String) -> Void)?
+    var onOpenURL: ((URL) -> Void)?
+
+    private var pendingContent: String?
+    private var pendingNoteNames: [String]?
+
+    private(set) lazy var webView: WKWebView = makeWebView()
+
+    func setContent(_ text: String) {
+        self.text = text
+        if isReady {
+            call("window.opal.setContent(text)", ["text": text])
+        } else {
+            pendingContent = text
+        }
+    }
+
+    /// Note names offered when typing `[[`.
+    func setNoteNames(_ names: [String]) {
+        if isReady {
+            call("window.opal.setNoteNames(names)", ["names": names])
+        } else {
+            pendingNoteNames = names
+        }
+    }
+
+    /// Reads the text straight from the editor, so it includes edits made within the change debounce.
+    func currentContent() async -> String {
+        guard isReady else { return text }
+        do {
+            if let content = try await webView.callAsyncJavaScript(
+                "return window.opal.getContent()", arguments: [:], contentWorld: .page
+            ) as? String {
+                text = content
+            }
+        } catch {
+            print("Failed to read editor content: \(error)")
+        }
+        return text
+    }
+
+    func exec(_ command: Command) {
+        call("window.opal.exec(name)", ["name": command.rawValue])
+    }
+
+    private func call(_ script: String, _ arguments: [String: Any]) {
+        guard isReady else { return }
+        Task {
+            do {
+                _ = try await webView.callAsyncJavaScript(script, arguments: arguments, contentWorld: .page)
+            } catch {
+                print("Editor call failed (\(script)): \(error)")
+            }
+        }
+    }
+
+    private func makeWebView() -> WKWebView {
+        let configuration = WKWebViewConfiguration()
+        configuration.userContentController.add(WeakMessageHandler(self), name: "opal")
+
+        let webView = WKWebView(frame: .zero, configuration: configuration)
+        webView.isOpaque = false
+        webView.backgroundColor = .systemBackground
+        webView.scrollView.backgroundColor = .systemBackground
+        #if DEBUG
+        webView.isInspectable = true
+        #endif
+
+        if let url = Bundle.main.url(forResource: "editor", withExtension: "html") {
+            webView.loadFileURL(url, allowingReadAccessTo: url.deletingLastPathComponent())
+        } else {
+            assertionFailure("editor.html missing from bundle; run `npm run build` in EditorWeb/")
+        }
+        return webView
+    }
+
+    fileprivate func handle(_ body: Any) {
+        guard let message = body as? [String: Any], let type = message["type"] as? String else { return }
+
+        switch type {
+        case "ready":
+            isReady = true
+            if let content = pendingContent {
+                pendingContent = nil
+                call("window.opal.setContent(text)", ["text": content])
+            }
+            if let names = pendingNoteNames {
+                pendingNoteNames = nil
+                call("window.opal.setNoteNames(names)", ["names": names])
+            }
+            if mode != .live {
+                call("window.opal.setMode(mode)", ["mode": mode.rawValue])
+            }
+        case "change":
+            if let text = message["text"] as? String {
+                self.text = text
+            }
+        case "openWikiLink":
+            if let target = message["target"] as? String {
+                onOpenWikiLink?(target)
+            }
+        case "openURL":
+            if let string = message["url"] as? String, let url = URL(string: string) {
+                onOpenURL?(url)
+            }
+        default:
+            break
+        }
+    }
+}
+
+/// Breaks the retain cycle between WKUserContentController and the controller.
+private final class WeakMessageHandler: NSObject, WKScriptMessageHandler {
+    weak var controller: MarkdownEditorController?
+
+    init(_ controller: MarkdownEditorController) {
+        self.controller = controller
+    }
+
+    func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+        let body = message.body
+        MainActor.assumeIsolated {
+            controller?.handle(body)
+        }
+    }
+}

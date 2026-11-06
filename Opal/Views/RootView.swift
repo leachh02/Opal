@@ -12,6 +12,18 @@ struct RootView: View {
     @EnvironmentObject var appState: AppState
 
     var body: some View {
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("-OpalEditorDemo") {
+            EditorDemoView()
+        } else {
+            content
+        }
+        #else
+        content
+        #endif
+    }
+
+    private var content: some View {
         Group {
             if appState.vaultSelected {
                 VaultView()
