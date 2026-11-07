@@ -29,7 +29,8 @@ final class AppState: ObservableObject {
 
     var vault: Vault? {
         guard let store, let vaultPath else { return nil }
-        return Vault(store: store, root: vaultPath)
+        let server = settings.map { "\($0.username)@\($0.host):\($0.port ?? 445)/\($0.share)" } ?? ""
+        return Vault(store: store, root: vaultPath, id: server + "/" + vaultPath)
     }
 
     private static let vaultPathKey = "vaultPath"

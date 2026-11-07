@@ -18,7 +18,7 @@ struct MarkdownEditorView: View {
     @Environment(\.scenePhase) private var scenePhase
     @EnvironmentObject private var index: NoteIndex
 
-    @StateObject private var editor = MarkdownEditorController()
+    @StateObject private var editor = MarkdownEditorController.make()
 
     @State private var isLoading = true
     @State private var loadError: String?
@@ -172,6 +172,7 @@ struct MarkdownEditorView: View {
             try await vault.store.write(Data(text.utf8), to: path)
             savedText = text
             lastKnownWriteTime = try? await vault.store.metadata(path).modified
+            index.noteSaved(path, text: text, modified: lastKnownWriteTime)
         } catch {
             errorMessage = "Couldn't save: \(error.localizedDescription)"
             return
@@ -226,9 +227,14 @@ struct MarkdownEditorView: View {
     /// Checks the places a note added since the last index is most likely to be: this
     /// note's folder and the top of the vault. Much cheaper than re-listing everything.
     private func findUnindexedNote(_ name: String) async -> String? {
-        let fileName = NoteIndex.fileName(for: name)
-        let candidates = [VaultPath.join([VaultPath.parent(of: path), fileName]), vault.path(fileName)]
-        for candidate in Set(candidates).sorted() where (try? await vault.store.fileExists(candidate)) == true {
+        var candidates: [String] = []
+        for fileName in LinkResolver.fileNames(for: name) {
+            for candidate in [VaultPath.join([VaultPath.parent(of: path), fileName]), vault.path(fileName)]
+            where !candidates.contains(candidate) {
+                candidates.append(candidate)
+            }
+        }
+        for candidate in candidates where (try? await vault.store.fileExists(candidate)) == true {
             index.insert(candidate)
             return candidate
         }
@@ -237,7 +243,7 @@ struct MarkdownEditorView: View {
 
     /// Creates an empty note for a link with no target, where Obsidian puts new notes by default.
     private func createNote(named name: String) async {
-        let newPath = vault.path(NoteIndex.fileName(for: name))
+        let newPath = vault.path(NoteIndex.noteFileName(for: name))
         do {
             // The index may be stale, so never overwrite a note that turns out to exist.
             if !(try await vault.store.fileExists(newPath)) {

@@ -69,6 +69,14 @@ final class SMBVaultStore: VaultStore {
         }
     }
 
+    func createFolder(_ path: String) async throws {
+        try await perform { try await $0.createDirectory(path: path) }
+    }
+
+    func move(_ path: String, to destination: String) async throws {
+        try await perform { try await $0.move(from: path, to: destination) }
+    }
+
     private func perform<T>(_ operation: (TreeAccessor) async throws -> T) async throws -> T {
         do {
             return try await operation(accessor)

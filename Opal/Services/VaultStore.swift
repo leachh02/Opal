@@ -17,6 +17,9 @@ protocol VaultStore: AnyObject {
     func write(_ data: Data, to path: String) async throws
     func metadata(_ path: String) async throws -> VaultItemMetadata
     func fileExists(_ path: String) async throws -> Bool
+    func createFolder(_ path: String) async throws
+    /// Moves or renames a file or folder. Fails rather than replace anything at `destination`.
+    func move(_ path: String, to destination: String) async throws
 }
 
 extension VaultStore {
@@ -29,6 +32,8 @@ extension VaultStore {
 struct Vault {
     let store: any VaultStore
     let root: String
+    /// Names the vault across launches, such as for caching what's in it. Empty if it has none.
+    var id = ""
 
     func path(_ components: String...) -> String {
         VaultPath.join([root] + components)
@@ -90,5 +95,9 @@ enum VaultPath {
 
     static func parent(of path: String) -> String {
         (path as NSString).deletingLastPathComponent
+    }
+
+    static func name(of path: String) -> String {
+        (path as NSString).lastPathComponent
     }
 }

@@ -37,6 +37,30 @@ final class MarkdownEditorController: NSObject, ObservableObject {
 
     private(set) lazy var webView: WKWebView = makeWebView()
 
+    /// An editor that has already loaded, since starting one takes longer than reading a note.
+    private static var spare: MarkdownEditorController?
+
+    /// A loaded editor if there is one, then starts loading the next.
+    static func make() -> MarkdownEditorController {
+        let controller = spare ?? MarkdownEditorController()
+        spare = nil
+        _ = controller.webView
+        Task {
+            // Wait for the note's own editor and push animation first.
+            try? await Task.sleep(for: .seconds(1))
+            prepareSpare()
+        }
+        return controller
+    }
+
+    /// Starts loading an editor for the next note to be opened.
+    static func prepareSpare() {
+        guard spare == nil else { return }
+        let controller = MarkdownEditorController()
+        _ = controller.webView
+        spare = controller
+    }
+
     func setContent(_ text: String) {
         self.text = text
         if isReady {
