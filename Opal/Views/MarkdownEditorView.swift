@@ -11,9 +11,12 @@ import SwiftUI
 struct MarkdownEditorView: View {
     let vault: Vault
     let path: String
+    /// A `heading` or `^block-id` to scroll to once the note loads.
+    var subpath: String?
 
     @Environment(\.openURL) private var openURL
     @Environment(\.scenePhase) private var scenePhase
+    @EnvironmentObject private var index: NoteIndex
 
     @StateObject private var editor = MarkdownEditorController()
 
@@ -26,12 +29,13 @@ struct MarkdownEditorView: View {
     @State private var isSaving = false
     @State private var hasConflict = false
     @State private var autosaveTask: Task<Void, Never>?
-    @State private var linkedNotePath: String?
+    @State private var linkedNote: NoteLink?
+    /// The name of a `[[link]]` that was tapped but has no note yet.
+    @State private var missingNote: String?
 
     private static let autosaveDelay: Duration = .seconds(2)
 
     private var hasUnsavedChanges: Bool { editor.text != savedText }
-    private var folder: String { VaultPath.parent(of: path) }
 
     var body: some View {
         ZStack {
@@ -72,7 +76,10 @@ struct MarkdownEditorView: View {
             editor.onOpenURL = { openURL($0) }
             editor.onOpenWikiLink = { target in Task { await open(wikiLink: target) } }
             await loadFile()
+            if let subpath { editor.reveal(subpath: subpath) }
         }
+        .onChange(of: index.files, initial: true) { pushLinkTargets() }
+        .onChange(of: index.isLoaded) { pushLinkTargets() }
         .onChange(of: editor.text) {
             scheduleAutosave()
         }
@@ -83,8 +90,8 @@ struct MarkdownEditorView: View {
             autosaveTask?.cancel()
             Task { await save() }
         }
-        .navigationDestination(item: $linkedNotePath) { linkedPath in
-            MarkdownEditorView(vault: vault, path: linkedPath)
+        .navigationDestination(item: $linkedNote) { link in
+            MarkdownEditorView(vault: vault, path: link.path, subpath: link.subpath)
         }
         .alert("Error", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
             Button("OK") {}
@@ -101,6 +108,18 @@ struct MarkdownEditorView: View {
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("This note was edited somewhere else since you opened it.")
+        }
+        .alert(
+            "“\(missingNote ?? "")” doesn't exist yet",
+            isPresented: Binding(get: { missingNote != nil }, set: { if !$0 { missingNote = nil } }),
+            presenting: missingNote
+        ) { name in
+            Button("Create Note") {
+                Task { await createNote(named: name) }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: { _ in
+            Text("Create it at the top of the vault?")
         }
     }
 
@@ -121,10 +140,7 @@ struct MarkdownEditorView: View {
             editor.setContent(text)
         } catch {
             loadError = error.localizedDescription
-            return
         }
-
-        await loadNoteNames()
     }
 
     private func scheduleAutosave() {
@@ -165,30 +181,80 @@ struct MarkdownEditorView: View {
         if editor.text != savedText { scheduleAutosave() }
     }
 
-    /// Note names for `[[` autocomplete. For now only the current folder is indexed.
-    private func loadNoteNames() async {
-        guard let items = try? await vault.store.list(folder) else { return }
-        let names = items
-            .filter { $0.kind == .markdown }
-            .map { ($0.name as NSString).deletingPathExtension }
-            .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
-        editor.setNoteNames(names)
+    private func pushLinkTargets() {
+        guard index.isLoaded else { return }
+        editor.setLinkTargets(index.linkTargets)
     }
 
-    /// Resolves `[[target]]` against the current folder, then the vault root.
+    /// Opens a `[[target#subpath]]` link, or offers to create the note if there isn't one.
     private func open(wikiLink target: String) async {
-        let name = target.split(separator: "#", maxSplits: 1).first.map(String.init) ?? target
-        guard !name.isEmpty else { return }
-        let fileName = (name as NSString).pathExtension.isEmpty ? name + ".md" : name
+        let parts = target.split(separator: "#", maxSplits: 1, omittingEmptySubsequences: false)
+        let name = parts[0].trimmingCharacters(in: .whitespaces)
+        let subpath = parts.count > 1 ? String(parts[1]) : nil
 
-        let candidates = [folder, vault.root].map { VaultPath.join([$0, fileName]) }
-        for candidate in candidates {
-            if (try? await vault.store.fileExists(candidate)) == true {
-                await save()
-                linkedNotePath = candidate
-                return
-            }
+        guard !name.isEmpty else {
+            if let subpath { editor.reveal(subpath: subpath) }
+            return
         }
-        errorMessage = "Couldn't find “\(name)” in this folder or at the top of the vault."
+
+        // Until the first index finishes, every link would look missing.
+        if !index.isLoaded { await index.refresh() }
+
+        var resolved = index.resolve(name, from: path)
+        if resolved == nil {
+            resolved = await findUnindexedNote(name)
+        }
+        guard let resolved else {
+            missingNote = name
+            // Re-index in the background rather than making the tap wait for a whole-vault listing.
+            Task { await index.refresh() }
+            return
+        }
+
+        guard FileKind(fileName: resolved) == .markdown else {
+            errorMessage = "Opal can't open “\((resolved as NSString).lastPathComponent)” yet. Only Markdown notes can be opened for now."
+            return
+        }
+        if resolved == path {
+            if let subpath { editor.reveal(subpath: subpath) }
+            return
+        }
+        await save()
+        linkedNote = NoteLink(path: resolved, subpath: subpath)
     }
+
+    /// Checks the places a note added since the last index is most likely to be: this
+    /// note's folder and the top of the vault. Much cheaper than re-listing everything.
+    private func findUnindexedNote(_ name: String) async -> String? {
+        let fileName = NoteIndex.fileName(for: name)
+        let candidates = [VaultPath.join([VaultPath.parent(of: path), fileName]), vault.path(fileName)]
+        for candidate in Set(candidates).sorted() where (try? await vault.store.fileExists(candidate)) == true {
+            index.insert(candidate)
+            return candidate
+        }
+        return nil
+    }
+
+    /// Creates an empty note for a link with no target, where Obsidian puts new notes by default.
+    private func createNote(named name: String) async {
+        let newPath = vault.path(NoteIndex.fileName(for: name))
+        do {
+            // The index may be stale, so never overwrite a note that turns out to exist.
+            if !(try await vault.store.fileExists(newPath)) {
+                try await vault.store.write(Data(), to: newPath)
+            }
+        } catch {
+            errorMessage = "Couldn't create “\(name)”: \(error.localizedDescription)"
+            return
+        }
+        index.insert(newPath)
+        await save()
+        linkedNote = NoteLink(path: newPath, subpath: nil)
+    }
+}
+
+/// Where a tapped `[[link]]` leads.
+private struct NoteLink: Hashable {
+    let path: String
+    let subpath: String?
 }

@@ -10,6 +10,12 @@ struct VaultView: View {
     let vault: Vault
 
     @EnvironmentObject var appState: AppState
+    @StateObject private var index: NoteIndex
+
+    init(vault: Vault) {
+        self.vault = vault
+        _index = StateObject(wrappedValue: NoteIndex(vault: vault))
+    }
 
     var body: some View {
         NavigationStack {
@@ -33,6 +39,8 @@ struct VaultView: View {
                     destination(for: item)
                 }
         }
+        .environmentObject(index)
+        .task { await index.refresh() }
     }
 
     @ViewBuilder
@@ -52,6 +60,7 @@ struct FolderView: View {
     let vault: Vault
     let path: String
 
+    @EnvironmentObject private var index: NoteIndex
     @State private var items: [VaultItem]?
     @State private var error: String?
 
@@ -75,7 +84,10 @@ struct FolderView: View {
             }
         }
         .navigationTitle(title)
-        .refreshable { await load() }
+        .refreshable {
+            await load()
+            await index.refresh()
+        }
         .task { await load() }
     }
 

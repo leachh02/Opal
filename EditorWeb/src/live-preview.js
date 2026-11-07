@@ -3,7 +3,30 @@
 // itself is never transformed, so what is saved is exactly what was typed.
 
 import { syntaxTree } from "@codemirror/language"
+import { StateEffect } from "@codemirror/state"
 import { Decoration, ViewPlugin, WidgetType } from "@codemirror/view"
+
+// Lowercased names that `[[links]]` can point at, or null until the vault has
+// been indexed (links aren't marked unresolved before then).
+let linkableNames = null
+
+/** Dispatch this after `setLinkableNames` so links are restyled. */
+export const linkableNamesChanged = StateEffect.define()
+
+export function setLinkableNames(names) {
+  linkableNames = names
+}
+
+/** The key a link target is matched on: its file name, lowercased, with `.md` implied. */
+export function linkKey(target) {
+  const name = target.split("/").pop().trim().toLowerCase()
+  return name.endsWith(".md") ? name.slice(0, -3) : name
+}
+
+function isResolved(target) {
+  const name = target.split("#")[0]
+  return linkableNames == null || name.trim() === "" || linkableNames.has(linkKey(name))
+}
 
 class CheckboxWidget extends WidgetType {
   constructor(checked) { super(); this.checked = checked }
@@ -242,8 +265,9 @@ function buildDecorations(view) {
               replace(node.from, textFrom)
               replace(node.to - 2, node.to)
             }
+            const cls = "cm-wikilink" + (isResolved(target) ? "" : " cm-wikilink-unresolved")
             mark(active ? node.from : textFrom, active ? node.to : node.to - 2,
-              active ? "cm-wikilink" : "cm-wikilink cm-link-rendered", { "data-target": target })
+              active ? cls : cls + " cm-link-rendered", { "data-target": target })
             return false
           }
 
@@ -296,7 +320,8 @@ export const livePreview = ViewPlugin.fromClass(class {
   }
   update(update) {
     if (update.docChanged || update.viewportChanged || update.selectionSet || update.focusChanged ||
-        syntaxTree(update.startState) !== syntaxTree(update.state)) {
+        syntaxTree(update.startState) !== syntaxTree(update.state) ||
+        update.transactions.some((tr) => tr.effects.some((e) => e.is(linkableNamesChanged)))) {
       this.decorations = buildDecorations(update.view)
     }
   }

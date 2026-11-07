@@ -4,7 +4,7 @@
 // `window.webkit.messageHandlers.opal`:
 //   { type: "ready" }
 //   { type: "change", text }          debounced after edits
-//   { type: "openWikiLink", target }  a rendered [[link]] was tapped
+//   { type: "openWikiLink", target }  a rendered [[link]] was tapped (the part before any `|`)
 //   { type: "openURL", url }          a rendered [link](url) was tapped
 
 import { autocompletion } from "@codemirror/autocomplete"
@@ -15,7 +15,7 @@ import { languages } from "@codemirror/language-data"
 import { Compartment, EditorSelection, EditorState } from "@codemirror/state"
 import { EditorView, keymap } from "@codemirror/view"
 import { tags as t } from "@lezer/highlight"
-import { livePreview, toggleTaskAt } from "./live-preview.js"
+import { linkKey, linkableNamesChanged, livePreview, setLinkableNames, toggleTaskAt } from "./live-preview.js"
 import { obsidianSyntax } from "./obsidian-syntax.js"
 
 const CHANGE_DEBOUNCE_MS = 300
@@ -44,16 +44,36 @@ const highlight = HighlightStyle.define([
   { tag: [t.function(t.variableName), t.function(t.propertyName)], color: "var(--code-function)" },
 ])
 
-let noteNames = []
+// Files `[[` can complete: { name, link, folder }.
+let linkTargets = []
 
 function wikiLinkCompletions(context) {
-  const match = context.matchBefore(/\[\[[^\]|\n]*/)
+  const match = context.matchBefore(/\[\[[^\]|#\n]*/)
   if (!match) return null
   return {
     from: match.from + 2,
-    options: noteNames.map((name) => ({ label: name, apply: name + "]]" })),
-    validFor: /^[^\]|\n]*$/,
+    options: linkTargets.map((target) => ({ label: target.name, detail: target.folder || undefined, apply: target.link + "]]" })),
+    validFor: /^[^\]|#\n]*$/,
   }
+}
+
+/** Moves the cursor to a `#heading` or `#^block` without focusing, so the note stays rendered. */
+function revealSubpath(subpath) {
+  const doc = view.state.doc
+  const wanted = subpath.trim().toLowerCase()
+  const block = wanted.startsWith("^") ? wanted : null
+  for (let n = 1; n <= doc.lines; n++) {
+    const line = doc.line(n)
+    const text = line.text.trim().toLowerCase()
+    const found = block
+      ? text.endsWith(" " + block) || text === block
+      : /^#{1,6}\s/.test(text) && text.replace(/^#{1,6}\s+/, "").replace(/\s+#+$/, "") === wanted
+    if (found) {
+      view.dispatch({ selection: { anchor: line.from }, effects: EditorView.scrollIntoView(line.from, { y: "start", yMargin: 16 }) })
+      return true
+    }
+  }
+  return false
 }
 
 const preview = new Compartment()
@@ -153,8 +173,15 @@ window.opal = {
   setMode(mode) {
     view.dispatch({ effects: preview.reconfigure(mode === "source" ? [] : livePreview) })
   },
-  setNoteNames(names) {
-    noteNames = Array.isArray(names) ? names : []
+  /** Files that `[[links]]` can point at, for autocomplete and to dim links to missing notes. */
+  setLinkTargets(targets) {
+    linkTargets = Array.isArray(targets) ? targets : []
+    setLinkableNames(new Set(linkTargets.map((target) => linkKey(target.name))))
+    view.dispatch({ effects: linkableNamesChanged.of(null) })
+  },
+  /** Scrolls to `heading` or `^block-id` from a link like `[[note#heading]]`. */
+  revealSubpath(subpath) {
+    return revealSubpath(subpath)
   },
   exec(name) {
     const command = commands[name]

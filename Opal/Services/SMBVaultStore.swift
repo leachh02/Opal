@@ -53,8 +53,20 @@ final class SMBVaultStore: VaultStore {
         return VaultItemMetadata(size: stat.size, isDirectory: stat.isDirectory, modified: stat.lastWriteTime)
     }
 
+    /// SMBClient's `existFile` only treats OBJECT_NAME_NOT_FOUND as missing, but
+    /// some servers (Impacket, for one) answer NO_SUCH_FILE, so stat the file instead.
     func fileExists(_ path: String) async throws -> Bool {
-        try await perform { try await $0.existFile(path: path) }
+        do {
+            _ = try await perform { try await $0.fileStat(path: path) }
+            return true
+        } catch let error as ErrorResponse {
+            switch NTStatus(error.header.status) {
+            case .objectNameNotFound, .objectPathNotFound, .noSuchFile:
+                return false
+            default:
+                throw error
+            }
+        }
     }
 
     private func perform<T>(_ operation: (TreeAccessor) async throws -> T) async throws -> T {

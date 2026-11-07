@@ -32,7 +32,8 @@ final class MarkdownEditorController: NSObject, ObservableObject {
     var onOpenURL: ((URL) -> Void)?
 
     private var pendingContent: String?
-    private var pendingNoteNames: [String]?
+    private var pendingLinkTargets: [[String: String]]?
+    private var pendingSubpath: String?
 
     private(set) lazy var webView: WKWebView = makeWebView()
 
@@ -45,12 +46,22 @@ final class MarkdownEditorController: NSObject, ObservableObject {
         }
     }
 
-    /// Note names offered when typing `[[`.
-    func setNoteNames(_ names: [String]) {
+    /// Files offered when typing `[[`. Links to anything else are shown as unresolved.
+    func setLinkTargets(_ targets: [NoteIndex.LinkTarget]) {
+        let encoded = targets.map { ["name": $0.name, "link": $0.link, "folder": $0.folder] }
         if isReady {
-            call("window.opal.setNoteNames(names)", ["names": names])
+            call("window.opal.setLinkTargets(targets)", ["targets": encoded])
         } else {
-            pendingNoteNames = names
+            pendingLinkTargets = encoded
+        }
+    }
+
+    /// Scrolls to the `heading` or `^block-id` of a `[[note#heading]]` link.
+    func reveal(subpath: String) {
+        if isReady {
+            call("window.opal.revealSubpath(subpath)", ["subpath": subpath])
+        } else {
+            pendingSubpath = subpath
         }
     }
 
@@ -114,9 +125,13 @@ final class MarkdownEditorController: NSObject, ObservableObject {
                 pendingContent = nil
                 call("window.opal.setContent(text)", ["text": content])
             }
-            if let names = pendingNoteNames {
-                pendingNoteNames = nil
-                call("window.opal.setNoteNames(names)", ["names": names])
+            if let targets = pendingLinkTargets {
+                pendingLinkTargets = nil
+                call("window.opal.setLinkTargets(targets)", ["targets": targets])
+            }
+            if let subpath = pendingSubpath {
+                pendingSubpath = nil
+                call("window.opal.revealSubpath(subpath)", ["subpath": subpath])
             }
             if mode != .live {
                 call("window.opal.setMode(mode)", ["mode": mode.rawValue])

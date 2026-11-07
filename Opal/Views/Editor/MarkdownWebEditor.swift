@@ -71,7 +71,9 @@ struct EditorDemoView: View {
                 }
         }
         .onAppear {
-            editor.setNoteNames(["Daily Note", "Projects", "Reading List"])
+            editor.setLinkTargets(["Daily Note", "Projects", "Reading List"].map {
+                NoteIndex.LinkTarget(name: $0, link: $0, folder: "")
+            })
             editor.setContent(Self.sample)
         }
     }
