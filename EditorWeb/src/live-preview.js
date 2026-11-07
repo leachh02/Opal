@@ -13,7 +13,12 @@ class CheckboxWidget extends WidgetType {
     box.className = "cm-task-checkbox" + (this.checked ? " cm-task-checked" : "")
     box.setAttribute("role", "checkbox")
     box.setAttribute("aria-checked", String(this.checked))
-    // Toggle on tap without moving the cursor or raising the keyboard.
+    // Toggle on tap without moving the cursor or raising the keyboard. Cancelling
+    // touchend on iOS also cancels the click that would follow it.
+    box.addEventListener("touchend", (e) => {
+      e.preventDefault()
+      toggleTaskAt(view, view.posAtDOM(box))
+    })
     box.addEventListener("mousedown", (e) => e.preventDefault())
     box.addEventListener("click", (e) => {
       e.preventDefault()
@@ -272,8 +277,23 @@ function buildDecorations(view) {
   return Decoration.set(decos, true)
 }
 
+function renderedLink(target) {
+  return target instanceof Element ? target.closest(".cm-link-rendered") : null
+}
+
+function openLink(view, el) {
+  const target = el.getAttribute("data-target")
+  if (target != null) view.dom.dispatchEvent(new CustomEvent("opal-open-wikilink", { detail: target, bubbles: true }))
+  else view.dom.dispatchEvent(new CustomEvent("opal-open-url", { detail: el.getAttribute("data-href"), bubbles: true }))
+}
+
+const TAP_SLOP_PX = 10
+
 export const livePreview = ViewPlugin.fromClass(class {
-  constructor(view) { this.decorations = buildDecorations(view) }
+  constructor(view) {
+    this.decorations = buildDecorations(view)
+    this.pendingTap = null
+  }
   update(update) {
     if (update.docChanged || update.viewportChanged || update.selectionSet || update.focusChanged ||
         syntaxTree(update.startState) !== syntaxTree(update.state)) {
@@ -282,15 +302,36 @@ export const livePreview = ViewPlugin.fromClass(class {
   }
 }, {
   decorations: (plugin) => plugin.decorations,
+  // Tapping a rendered link opens it instead of placing the cursor.
   eventHandlers: {
-    // Tapping a rendered link opens it instead of placing the cursor.
+    // iOS moves the selection before it sends mouse events, so taps are handled
+    // as touches; cancelling touchend stops the cursor moving and the keyboard opening.
+    touchstart(event) {
+      const el = renderedLink(event.target)
+      const touch = event.touches[0]
+      this.pendingTap = el && event.touches.length === 1 ? { el, x: touch.clientX, y: touch.clientY } : null
+      return false
+    },
+    touchmove(event) {
+      const touch = event.touches[0]
+      if (this.pendingTap && Math.hypot(touch.clientX - this.pendingTap.x, touch.clientY - this.pendingTap.y) > TAP_SLOP_PX) {
+        this.pendingTap = null
+      }
+      return false
+    },
+    touchend(event, view) {
+      const tap = this.pendingTap
+      this.pendingTap = null
+      if (!tap) return false
+      event.preventDefault()
+      openLink(view, tap.el)
+      return true
+    },
     mousedown(event, view) {
-      const el = event.target instanceof Element ? event.target.closest(".cm-link-rendered") : null
+      const el = renderedLink(event.target)
       if (!el) return false
       event.preventDefault()
-      const target = el.getAttribute("data-target")
-      if (target != null) view.dom.dispatchEvent(new CustomEvent("opal-open-wikilink", { detail: target, bubbles: true }))
-      else view.dom.dispatchEvent(new CustomEvent("opal-open-url", { detail: el.getAttribute("data-href"), bubbles: true }))
+      openLink(view, el)
       return true
     },
   },

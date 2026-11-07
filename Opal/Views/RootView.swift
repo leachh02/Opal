@@ -25,16 +25,19 @@ struct RootView: View {
 
     private var content: some View {
         Group {
-            if appState.vaultSelected {
-                VaultView()
+            if let vault = appState.vault {
+                VaultView(vault: vault)
+                    .id(vault.root)
+            } else if let store = appState.store {
+                NavigationStack {
+                    SelectVaultView(store: store, path: "")
+                }
             } else {
                 LandingView()
             }
         }
-        .onAppear {
-            Task {
-                await appState.attemptAutoLogin()
-            }
+        .task {
+            await appState.reconnect()
         }
     }
 }

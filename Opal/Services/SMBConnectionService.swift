@@ -5,49 +5,68 @@
 //  Created by Harrison Leach on 29/7/2025.
 //
 
-
 import Foundation
+import Network
 import SMBClient
 
+/// Owns the SMB session: logging in, checking the share, and logging off.
 @MainActor
-class SMBConnectionService: ObservableObject {
-    @Published var isConnected: Bool = false
-    @Published var treeAccessor: TreeAccessor? = nil
-    @Published var error: String? = nil
+final class SMBConnectionService {
+    private var client: SMBClient?
 
-    private(set) var client: SMBClient?
+    /// Logs in and opens the share, replacing any existing session.
+    func connect(_ settings: ConnectionSettings, password: String) async throws -> TreeAccessor {
+        if let previous = client {
+            // The old session is often already dead (e.g. after the app was suspended), so don't wait on it.
+            client = nil
+            Task { _ = try? await previous.logoff() }
+        }
 
-    func connect(host: String, port: String?, share: String, username: String, password: String, saveCredentials: Bool = true)   async {
+        let client = settings.port.map { SMBClient(host: settings.host, port: $0) } ?? SMBClient(host: settings.host)
         do {
-            let smbClient: SMBClient
-            if let port = port.flatMap(Int.init) {
-                smbClient = SMBClient(host: host, port: port)
-            } else {
-                smbClient = SMBClient(host: host)
-            }
-
-            try await smbClient.login(username: username, password: password)
-            
-            if saveCredentials {
-                CredentialStore.shared.save(
-                    server: host,
-                    securityDomain: share,
-                    username: username,
-                    password: password
-                )
-            }
-
-            self.client = smbClient
-            self.treeAccessor = smbClient.treeAccessor(share: share)
-            self.isConnected = true
-            self.error = nil
+            try await client.login(username: settings.username, password: password)
+            // The accessor copies the session's negotiated state, so it must be made after login.
+            let accessor = client.treeAccessor(share: settings.share)
+            // The share is only opened on first use, so list it now to report a bad share name here.
+            _ = try await accessor.listDirectory(path: "")
+            self.client = client
+            return accessor
         } catch {
-            self.isConnected = false
-            self.error = error.localizedDescription
+            throw ConnectionFailure(error, settings: settings)
         }
     }
-    
-    func loadStoredCredential(for host: String, share: String) -> Credential? {
-        return CredentialStore.shared.load(server: host, securityDomain: share)
+
+    func disconnect() async {
+        guard let client else { return }
+        self.client = nil
+        _ = try? await client.logoff()
+    }
+}
+
+/// A connection error with a message worth showing to the user.
+struct ConnectionFailure: LocalizedError {
+    let errorDescription: String?
+
+    init(_ error: Error, settings: ConnectionSettings) {
+        let host = settings.host
+        let share = settings.share
+        if let response = error as? ErrorResponse {
+            switch NTStatus(response.header.status) {
+            case .logonFailure:
+                errorDescription = "The username or password is incorrect."
+            case .badNetworkName, .objectPathNotFound, .objectNameNotFound:
+                errorDescription = "There's no share called “\(share)” on \(host)."
+            case .accessDenied:
+                errorDescription = "This account doesn't have access to “\(share)”."
+            default:
+                errorDescription = response.localizedDescription
+            }
+        } else if error is NWError {
+            errorDescription = "Couldn't reach \(host). Check the address and that you're on the same network."
+        } else if error is ConnectionError {
+            errorDescription = "\(host) closed the connection."
+        } else {
+            errorDescription = "Couldn't connect to \(host): \(error.localizedDescription)"
+        }
     }
 }

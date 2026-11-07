@@ -7,13 +7,11 @@
 
 
 import SwiftUI
-import SMBClient
 
 struct ConnectToServerView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject var appState: AppState
     @StateObject var model = ServerDiscoveryModel()
-    @StateObject private var connectionService = SMBConnectionService()
     @State private var displayName = ""
     @State private var host = ""
     @State private var port = ""
@@ -21,96 +19,80 @@ struct ConnectToServerView: View {
     @State private var username = ""
     @State private var password = ""
     @State private var isRegistered = false
-    @State private var selectedServer: Server?
-    @State private var showVaultPicker = false
-    @State private var showErrorAlert = false
-    @State private var errorMessage = ""
+    @State private var isConnecting = false
+    @State private var errorMessage: String?
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
-                // Connection Form
-                Form {
-                    Section("Server Details") {
+            Form {
+                Section("Server Details") {
+                    field("Display Name", "Optional", text: $displayName)
+                    field("Host", "e.g. 192.168.1.5", text: $host)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .keyboardType(.URL)
+                    field("Share", "Required", text: $share)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                    field("Port", "Optional", text: $port)
+                        .keyboardType(.numberPad)
+                }
+
+                Section("Connect as") {
+                    Picker("Connection Type", selection: $isRegistered) {
+                        Text("Guest").tag(false)
+                        Text("Registered User").tag(true)
+                    }
+                    .pickerStyle(.inline)
+                    .labelsHidden()
+                }
+
+                if isRegistered {
+                    Section("Credentials") {
+                        field("Username", "Required", text: $username)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                            .textContentType(.username)
                         HStack {
-                            Text("Display Name")
-                                .foregroundColor(.primary)
-                            TextField("Optional", text: $displayName)
+                            Text("Password")
+                            SecureField("Optional", text: $password)
                                 .multilineTextAlignment(.trailing)
-                        }
-                        HStack {
-                            Text("Host")
-                                .foregroundColor(.primary)
-                            TextField("e.g. 192.168.1.5", text: $host)
-                                .multilineTextAlignment(.trailing)
-                        }
-                        HStack {
-                            Text("Share")
-                                .foregroundColor(.primary)
-                            TextField("Required", text: $share)
-                                .multilineTextAlignment(.trailing)
-                        }
-                        HStack {
-                            Text("Port")
-                                .foregroundColor(.primary)
-                            TextField("Optional", text: $port)
-                                .multilineTextAlignment(.trailing)
-                                .keyboardType(.numberPad)
+                                .textContentType(.password)
                         }
                     }
-                    
-                    Section("Connect as") {
-                        Picker("Connection Type", selection: $isRegistered) {
-                                Text("Guest").tag(false)
-                                Text("Registered User").tag(true)
-                        }
-                        .pickerStyle(.inline)
-                        .labelsHidden()
-                    }
-                    
-                    if isRegistered{
-                        Section("Credentials") {
-                            HStack {
-                                Text("Username")
-                                    .foregroundColor(.primary)
-                                TextField("Required", text: $username)
-                                    .multilineTextAlignment(.trailing)
-                            }
-                            HStack {
-                                Text("Password")
-                                    .foregroundColor(.primary)
-                                SecureField("Optional", text: $password)
-                                    .multilineTextAlignment(.trailing)
-                            }
-                        }
-                    }
-                    
-                    List {
-                        if !model.discovered.isEmpty {
-                            Section("Discovered Servers") {
-                                ForEach(model.discovered.sorted(by: { $0.name < $1.name }), id: \.self) { service in
-                                    Button(service.name) {
-                                        self.host = service.name
-                                    }
-                                }
-                            }
-                        }
-                        
-                        if !model.saved.isEmpty {
-                            Section("Saved Servers") {
-                                ForEach(model.saved, id: \.id) { server in
-                                    Button(server.displayName) {
-                                        selectedServer = server
-                                        displayName = server.displayName
-                                        host = server.server
+                }
+
+                if !model.saved.isEmpty {
+                    Section("Saved Servers") {
+                        ForEach(model.saved, id: \.id) { server in
+                            Button {
+                                fill(from: server)
+                            } label: {
+                                VStack(alignment: .leading) {
+                                    Text(server.displayName)
+                                    if let share = server.share {
+                                        Text("\(server.server)/\(share)")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
                                     }
                                 }
                             }
                         }
                     }
                 }
-                .animation(.easeInOut(duration: 0.3), value: isRegistered)
+
+                if !model.discovered.isEmpty {
+                    Section("Discovered Servers") {
+                        ForEach(model.discovered.sorted(by: { $0.name < $1.name }), id: \.self) { service in
+                            Button(service.name) {
+                                host = service.name
+                            }
+                        }
+                    }
+                }
             }
+            .animation(.easeInOut(duration: 0.3), value: isRegistered)
+            .disabled(isConnecting)
             .navigationTitle("Connect to Server")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -118,51 +100,93 @@ struct ConnectToServerView: View {
                     Button("Cancel") {
                         dismiss()
                     }
+                    .disabled(isConnecting)
                 }
-                ToolbarItem(placement: .navigationBarTrailing){
-                    Button("Connect") {
-                        Task {
-                            appState.displayName = displayName.isEmpty ? nil : displayName
-                            appState.host = host
-                            appState.share = share
-                            appState.port = port.isEmpty ? nil : port
-                            appState.username = username
-                            appState.password = password
-                            await appState.connect(isRegistered: isRegistered)
-                                
-                            if appState.isLoggedIn {
-                                let id = ID(UUID().uuidString)
-                                ServerManager.shared.addServer(id: id, displayName: displayName, server: host, port: nil)
-                                showVaultPicker = true
-                            } else {
-                                // Handle connection failure
-                                errorMessage = connectionService.error ?? "Failed to connect to server. Please check your credentials and network connection."
-                                showErrorAlert = true
-                            }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    if isConnecting {
+                        ProgressView()
+                    } else {
+                        Button("Connect") {
+                            Task { await connect() }
                         }
+                        .disabled(!canConnect)
                     }
-                    .disabled(host.isEmpty || share.isEmpty || isRegistered && username.isEmpty)
                 }
             }
-            .alert("Connection Error", isPresented: $showErrorAlert) {
-                Button("OK") { }
+            .alert("Couldn't Connect", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
+                Button("OK") {}
             } message: {
-                Text(errorMessage)
+                Text(errorMessage ?? "")
             }
-            .navigationDestination(isPresented: $showVaultPicker) {
-                if let accessor = appState.treeAccessor {
-                    SelectVaultView(treeAccessor: accessor, path: "")
-                } else {
-                    EmptyView()
+            .onAppear {
+                if host.isEmpty, let settings = appState.settings {
+                    fill(from: settings)
                 }
             }
         }
     }
+
+    private var trimmedHost: String { host.trimmingCharacters(in: .whitespaces) }
+    private var trimmedShare: String { share.trimmingCharacters(in: CharacterSet(charactersIn: "/ ")) }
+    private var portIsValid: Bool { port.isEmpty || Int(port).map { (1...65535).contains($0) } == true }
+
+    private var canConnect: Bool {
+        !trimmedHost.isEmpty && !trimmedShare.isEmpty && portIsValid && (!isRegistered || !username.isEmpty)
+    }
+
+    private func connect() async {
+        let settings = ConnectionSettings(
+            displayName: displayName.isEmpty ? nil : displayName,
+            host: trimmedHost,
+            port: Int(port),
+            share: trimmedShare,
+            username: isRegistered ? username : ""
+        )
+        isConnecting = true
+        defer { isConnecting = false }
+        do {
+            try await appState.connect(settings, password: isRegistered ? password : "")
+            dismiss()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func fill(from settings: ConnectionSettings) {
+        displayName = settings.displayName ?? ""
+        host = settings.host
+        port = settings.port.map(String.init) ?? ""
+        share = settings.share
+        username = settings.username
+        isRegistered = !settings.isGuest
+        password = savedPassword(host: settings.host, share: settings.share)
+    }
+
+    private func fill(from server: Server) {
+        displayName = server.displayName == server.server ? "" : server.displayName
+        host = server.server
+        port = server.port.map(String.init) ?? ""
+        share = server.share ?? ""
+        username = server.username ?? ""
+        isRegistered = server.username != nil
+        password = savedPassword(host: server.server, share: share)
+    }
+
+    private func savedPassword(host: String, share: String) -> String {
+        guard !share.isEmpty else { return "" }
+        return CredentialStore.shared.load(server: host, securityDomain: share)?.password ?? ""
+    }
+
+    private func field(_ label: String, _ prompt: String, text: Binding<String>) -> some View {
+        HStack {
+            Text(label)
+            TextField(prompt, text: text)
+                .multilineTextAlignment(.trailing)
+        }
+    }
 }
-    
+
 #Preview {
     ConnectToServerView()
+        .environmentObject(AppState())
 }
-
-
-

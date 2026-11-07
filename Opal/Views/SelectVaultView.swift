@@ -5,83 +5,86 @@
 //  Created by Harrison Leach on 29/7/2025.
 //
 import SwiftUI
-import SMBClient
 
 struct SelectVaultView: View {
-    let treeAccessor: TreeAccessor
+    let store: any VaultStore
     let path: String
-    
-    @EnvironmentObject var appState: AppState
-    @Environment(\.dismiss) var dismiss
 
-    @State private var files: [File] = []
+    @EnvironmentObject var appState: AppState
+
+    @State private var folders: [VaultItem] = []
     @State private var isLoading = true
     @State private var error: String?
     @State private var isObsidianVault = false
 
     var body: some View {
         List {
-            ForEach(Array(files.enumerated()), id: \.offset) { index, file in
-                NavigationLink {
-                  SelectVaultView(treeAccessor: treeAccessor, path: fullPath(for: file))
-                } label: {
-                    Label(file.name, systemImage:"folder")
+            if isObsidianVault {
+                Section {
+                    Label("This folder is an Obsidian vault", systemImage: "checkmark.seal")
+                        .foregroundStyle(.tint)
+                }
+            }
+            Section {
+                ForEach(folders) { folder in
+                    NavigationLink {
+                        SelectVaultView(store: store, path: folder.path)
+                    } label: {
+                        Label(folder.name, systemImage: "folder")
+                    }
+                }
+            } footer: {
+                if !isLoading && error == nil && !isObsidianVault {
+                    Text("Open a folder that contains an .obsidian folder.")
                 }
             }
         }
         .navigationTitle(path.isEmpty ? "Choose Vault" : URL(fileURLWithPath: path).lastPathComponent)
         .toolbar {
+            if path.isEmpty {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Disconnect") {
+                        Task { await appState.disconnect() }
+                    }
+                }
+            }
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button("Open") {
-                    appState.treeAccessor = treeAccessor
-                    appState.currentVaultPath = path
-                    appState.vaultSelected = true
+                    appState.openVault(at: path)
                 }
-                .disabled(!isValidVault)
+                .disabled(!isObsidianVault)
             }
         }
         .overlay {
             if isLoading {
                 ProgressView("Loading...")
-            } else if let error = error {
-                Text(error)
-                    .foregroundColor(.red)
-                    .multilineTextAlignment(.center)
-                    .padding()
+            } else if let error {
+                ContentUnavailableView {
+                    Label("Couldn't load folder", systemImage: "exclamationmark.triangle")
+                } description: {
+                    Text(error)
+                } actions: {
+                    Button("Try Again") { Task { await loadDirectory() } }
+                }
             }
         }
         .task {
             await loadDirectory()
         }
     }
-    
-    private var isValidVault: Bool {
-        return isObsidianVault
-        }
 
     private func loadDirectory() async {
+        isLoading = true
+        error = nil
+        defer { isLoading = false }
         do {
-            var items = try await treeAccessor.listDirectory(path: path)
-            let isObsidianVault = items.contains { $0.name == ".obsidian" && $0.isDirectory }
-            items = items
-                .filter { $0.isDirectory && $0.name != "." && $0.name != ".." && !$0.isHidden }
-                .sorted {
-                    if $0.isDirectory != $1.isDirectory {
-                        return $0.isDirectory
-                    } else {
-                        return $0.name.localizedStandardCompare($1.name) == .orderedAscending
-                    }
-                }
-            self.files = items
-            self.isLoading = false
-            self.isObsidianVault = isObsidianVault
+            let items = try await store.list(path, includeHidden: true)
+            isObsidianVault = items.contains { $0.name == ".obsidian" && $0.isDirectory }
+            folders = items
+                .filter { $0.isDirectory && !$0.name.hasPrefix(".") }
+                .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
         } catch {
             self.error = error.localizedDescription
-            self.isLoading = false
         }
-    }
-
-    private func fullPath(for file: File) -> String {
-        return path.isEmpty ? file.name : "\(path)/\(file.name)"
     }
 }

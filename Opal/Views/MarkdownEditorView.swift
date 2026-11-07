@@ -7,13 +7,11 @@
 
 
 import SwiftUI
-import SMBClient
 
 struct MarkdownEditorView: View {
+    let vault: Vault
     let path: String
-    let treeAccessor: TreeAccessor
 
-    @EnvironmentObject private var appState: AppState
     @Environment(\.openURL) private var openURL
     @Environment(\.scenePhase) private var scenePhase
 
@@ -33,7 +31,7 @@ struct MarkdownEditorView: View {
     private static let autosaveDelay: Duration = .seconds(2)
 
     private var hasUnsavedChanges: Bool { editor.text != savedText }
-    private var folder: String { (path as NSString).deletingLastPathComponent }
+    private var folder: String { VaultPath.parent(of: path) }
 
     var body: some View {
         ZStack {
@@ -45,7 +43,7 @@ struct MarkdownEditorView: View {
                 ContentUnavailableView("Couldn't open note", systemImage: "exclamationmark.triangle", description: Text(loadError))
             }
         }
-        .navigationTitle(URL(fileURLWithPath: path).lastPathComponent)
+        .navigationTitle(((path as NSString).lastPathComponent as NSString).deletingPathExtension)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItemGroup(placement: .navigationBarTrailing) {
@@ -86,7 +84,7 @@ struct MarkdownEditorView: View {
             Task { await save() }
         }
         .navigationDestination(item: $linkedNotePath) { linkedPath in
-            MarkdownEditorView(path: linkedPath, treeAccessor: treeAccessor)
+            MarkdownEditorView(vault: vault, path: linkedPath)
         }
         .alert("Error", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
             Button("OK") {}
@@ -112,14 +110,14 @@ struct MarkdownEditorView: View {
         defer { isLoading = false }
 
         do {
-            let stat = try await treeAccessor.fileStat(path: path)
-            let data = try await treeAccessor.download(path: path)
+            let metadata = try await vault.store.metadata(path)
+            let data = try await vault.store.read(path)
             guard let text = String(data: data, encoding: .utf8) else {
                 loadError = "This file isn't UTF-8 text, so Opal can't edit it."
                 return
             }
             savedText = text
-            lastKnownWriteTime = stat.lastWriteTime
+            lastKnownWriteTime = metadata.modified
             editor.setContent(text)
         } catch {
             loadError = error.localizedDescription
@@ -149,15 +147,15 @@ struct MarkdownEditorView: View {
 
         do {
             if !overwritingServerChanges, let lastKnownWriteTime {
-                let stat = try await treeAccessor.fileStat(path: path)
-                if stat.lastWriteTime != lastKnownWriteTime {
+                let metadata = try await vault.store.metadata(path)
+                if metadata.modified != lastKnownWriteTime {
                     hasConflict = true
                     return
                 }
             }
-            try await treeAccessor.upload(content: Data(text.utf8), path: path)
+            try await vault.store.write(Data(text.utf8), to: path)
             savedText = text
-            lastKnownWriteTime = try? await treeAccessor.fileStat(path: path).lastWriteTime
+            lastKnownWriteTime = try? await vault.store.metadata(path).modified
         } catch {
             errorMessage = "Couldn't save: \(error.localizedDescription)"
             return
@@ -169,10 +167,10 @@ struct MarkdownEditorView: View {
 
     /// Note names for `[[` autocomplete. For now only the current folder is indexed.
     private func loadNoteNames() async {
-        guard let files = try? await treeAccessor.listDirectory(path: folder) else { return }
-        let names = files
-            .filter { !$0.isDirectory && $0.name.lowercased().hasSuffix(".md") }
-            .map { String($0.name.dropLast(3)) }
+        guard let items = try? await vault.store.list(folder) else { return }
+        let names = items
+            .filter { $0.kind == .markdown }
+            .map { ($0.name as NSString).deletingPathExtension }
             .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
         editor.setNoteNames(names)
     }
@@ -183,18 +181,14 @@ struct MarkdownEditorView: View {
         guard !name.isEmpty else { return }
         let fileName = (name as NSString).pathExtension.isEmpty ? name + ".md" : name
 
-        let candidates = [folder, appState.currentVaultPath].map { join($0, fileName) }
+        let candidates = [folder, vault.root].map { VaultPath.join([$0, fileName]) }
         for candidate in candidates {
-            if (try? await treeAccessor.existFile(path: candidate)) == true {
+            if (try? await vault.store.fileExists(candidate)) == true {
                 await save()
                 linkedNotePath = candidate
                 return
             }
         }
         errorMessage = "Couldn't find “\(name)” in this folder or at the top of the vault."
-    }
-
-    private func join(_ directory: String, _ name: String) -> String {
-        directory.isEmpty ? name : "\(directory)/\(name)"
     }
 }

@@ -8,33 +8,41 @@ class ServerManager {
 
   private init() {}
 
-  func addServer(id: ID, displayName: String, server: String, port: Int?) {
+  /// Saves a server, replacing any saved entry for the same share.
+  func addServer(_ settings: ConnectionSettings) {
     let server = Server(
-      id: id,
-      displayName: displayName.isEmpty ? server : displayName,
-      server: server,
-      port: port
+      id: ID(UUID().uuidString),
+      displayName: settings.title,
+      server: settings.host,
+      port: settings.port,
+      share: settings.share,
+      username: settings.isGuest ? nil : settings.username
     )
 
-    guard !servers.contains(server) else { return }
-    servers.append(server)
-
-    let encoder = PropertyListEncoder()
-    encoder.outputFormat = .binary
-    if let data = try? encoder.encode(servers) {
-      UserDefaults.standard.setValue(data, forKey: "servers")
+    if let index = servers.firstIndex(of: server) {
+      servers[index] = Server(
+        id: servers[index].id, displayName: server.displayName, server: server.server,
+        port: server.port, share: server.share, username: server.username
+      )
+    } else {
+      servers.append(server)
     }
+    persist()
   }
 
   func removeServer(_ server: Server) {
     guard let index = servers.firstIndex(of: server) else { return }
     servers.remove(at: index)
+    persist()
+  }
 
+  private func persist() {
     let encoder = PropertyListEncoder()
     encoder.outputFormat = .binary
     if let data = try? encoder.encode(servers) {
       UserDefaults.standard.setValue(data, forKey: "servers")
     }
+    NotificationCenter.default.post(name: Self.serversDidUpdate, object: self)
   }
 
   func restoreSavedServers() {
