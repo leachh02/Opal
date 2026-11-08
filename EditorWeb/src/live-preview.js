@@ -5,6 +5,7 @@
 import { syntaxTree } from "@codemirror/language"
 import { StateEffect } from "@codemirror/state"
 import { Decoration, ViewPlugin, WidgetType } from "@codemirror/view"
+import { tableLines } from "./tables.js"
 
 // Lowercased names that `[[links]]` can point at, or null until the vault has
 // been indexed (links aren't marked unresolved before then).
@@ -23,7 +24,7 @@ export function linkKey(target) {
   return name.endsWith(".md") ? name.slice(0, -3) : name
 }
 
-function isResolved(target) {
+export function isResolved(target) {
   const name = target.split("#")[0]
   return linkableNames == null || name.trim() === "" || linkableNames.has(linkKey(name))
 }
@@ -406,6 +407,8 @@ function buildDecorations(view) {
             return
 
           case "Table":
+            // Tables away from the cursor are drawn as a grid by tables.js.
+            if (!active && tableLines(doc, node)) return false
             lineClass(node.from, node.to, "cm-table")
             return
 

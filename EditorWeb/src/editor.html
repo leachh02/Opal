@@ -100,8 +100,20 @@
   .cm-embed-missing { opacity: 0.6; }
   .cm-embed-missing::before { content: "🖼 "; }
 
-  .cm-table { font-family: var(--mono); font-size: 0.85em; white-space: pre; }
+  /* A table's source, shown while editing it. It wraps so no cell is out of sight. */
+  .cm-table { font-family: var(--mono); font-size: 0.85em; }
   .cm-table-delimiter { color: var(--muted); }
+  /* Lines are inset 6px by CodeMirror, so the grid lines up with the text. */
+  /* Containment keeps a wide table from widening the note, so only the table scrolls sideways. */
+  .cm-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 6px 2px 6px 6px; contain: inline-size; }
+  .cm-table-grid { border-collapse: collapse; line-height: 1.4; }
+  /* Words stay whole, so a wide table scrolls sideways rather than breaking them. */
+  .cm-table-grid th, .cm-table-grid td {
+    border: 1px solid var(--rule); padding: 6px 10px; vertical-align: top; text-align: left; min-width: 2em;
+    white-space: normal; overflow-wrap: normal; word-break: normal;
+  }
+  .cm-table-grid th { background: var(--code-bg); font-weight: 600; }
+  .cm-table-grid mark { color: inherit; }
 
   .cm-tooltip-autocomplete { border-radius: 10px; overflow: hidden; border: 1px solid var(--rule) !important; background: var(--bg) !important; }
   .cm-tooltip-autocomplete li[aria-selected] { background: var(--accent) !important; color: white !important; }

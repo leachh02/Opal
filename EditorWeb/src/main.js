@@ -17,6 +17,7 @@ import { EditorView, keymap } from "@codemirror/view"
 import { tags as t } from "@lezer/highlight"
 import { linkKey, linkableNamesChanged, livePreview, setLinkableNames, toggleTaskAt } from "./live-preview.js"
 import { obsidianSyntax } from "./obsidian-syntax.js"
+import { tablePreview } from "./tables.js"
 
 const CHANGE_DEBOUNCE_MS = 300
 
@@ -77,6 +78,7 @@ function revealSubpath(subpath) {
 }
 
 const preview = new Compartment()
+const livePreviewExtensions = [livePreview, tablePreview]
 const typing = new Compartment()
 let typingAttributes = { autocapitalize: "sentences", autocorrect: "on", spellcheck: "true" }
 
@@ -95,7 +97,7 @@ function createState(text) {
       EditorView.lineWrapping,
       typing.of(EditorView.contentAttributes.of(typingAttributes)),
       autocompletion({ override: [wikiLinkCompletions], icons: false }),
-      preview.of(livePreview),
+      preview.of(livePreviewExtensions),
       EditorView.updateListener.of((update) => { if (update.docChanged) scheduleChange() }),
     ],
   })
@@ -174,7 +176,7 @@ window.opal = {
   },
   /** "live" renders Markdown in place; "source" shows the raw text. */
   setMode(mode) {
-    view.dispatch({ effects: preview.reconfigure(mode === "source" ? [] : livePreview) })
+    view.dispatch({ effects: preview.reconfigure(mode === "source" ? [] : livePreviewExtensions) })
   },
   /** Settings from the Settings screen: `textScale` is a percentage of the iPhone's text size. */
   setOptions({ textScale, autocorrect, spellcheck }) {
