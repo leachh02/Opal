@@ -91,6 +91,12 @@ struct VaultFiles {
 
         try await vault.store.move(item.path, to: destination)
         index.move(item.path, to: destination)
+        // The folder chosen for new notes follows a rename or move.
+        var settings = VaultSettings.load(for: vault)
+        if settings.newNoteFolder == from || settings.newNoteFolder.hasPrefix(from + "/") {
+            settings.newNoteFolder = to + settings.newNoteFolder.dropFirst(from.count)
+            settings.save(for: vault)
+        }
 
         guard !moves.isEmpty else { return }
         let rewriter = LinkRewriter(filesBefore: filesBefore, moves: moves)

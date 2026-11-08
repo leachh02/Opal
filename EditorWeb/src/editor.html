@@ -44,6 +44,8 @@
   #editor, .cm-editor { height: 100%; }
   .cm-editor { font: -apple-system-body; -webkit-text-size-adjust: 100%; }
   .cm-editor .cm-scroller { font-family: -apple-system, system-ui, sans-serif; }
+  /* The text size setting scales the iPhone's own text size. */
+  .cm-content { font-size: calc(var(--text-scale, 1) * 100%); }
   .cm-editor.cm-focused { outline: none; }
   .cm-scroller { line-height: 1.5; overflow: auto; -webkit-overflow-scrolling: touch; }
   .cm-content { padding: 16px max(16px, env(safe-area-inset-right)) 40vh max(16px, env(safe-area-inset-left)); caret-color: var(--accent); }

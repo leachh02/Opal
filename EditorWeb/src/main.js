@@ -77,6 +77,8 @@ function revealSubpath(subpath) {
 }
 
 const preview = new Compartment()
+const typing = new Compartment()
+let typingAttributes = { autocapitalize: "sentences", autocorrect: "on", spellcheck: "true" }
 
 function createState(text) {
   return EditorState.create({
@@ -91,7 +93,7 @@ function createState(text) {
       indentUnit.of("\t"),
       EditorState.tabSize.of(4),
       EditorView.lineWrapping,
-      EditorView.contentAttributes.of({ autocapitalize: "sentences", autocorrect: "on", spellcheck: "true" }),
+      typing.of(EditorView.contentAttributes.of(typingAttributes)),
       autocompletion({ override: [wikiLinkCompletions], icons: false }),
       preview.of(livePreview),
       EditorView.updateListener.of((update) => { if (update.docChanged) scheduleChange() }),
@@ -173,6 +175,12 @@ window.opal = {
   /** "live" renders Markdown in place; "source" shows the raw text. */
   setMode(mode) {
     view.dispatch({ effects: preview.reconfigure(mode === "source" ? [] : livePreview) })
+  },
+  /** Settings from the Settings screen: `textScale` is a percentage of the iPhone's text size. */
+  setOptions({ textScale, autocorrect, spellcheck }) {
+    document.documentElement.style.setProperty("--text-scale", String(textScale / 100))
+    typingAttributes = { autocapitalize: "sentences", autocorrect: autocorrect ? "on" : "off", spellcheck: String(spellcheck) }
+    view.dispatch({ effects: typing.reconfigure(EditorView.contentAttributes.of(typingAttributes)) })
   },
   /** Files that `[[links]]` can point at, for autocomplete and to dim links to missing notes. */
   setLinkTargets(targets) {

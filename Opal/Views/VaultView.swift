@@ -11,6 +11,7 @@ struct VaultView: View {
 
     @EnvironmentObject var appState: AppState
     @StateObject private var index: NoteIndex
+    @State private var showingSettings = false
 
     init(vault: Vault) {
         self.vault = vault
@@ -22,17 +23,9 @@ struct VaultView: View {
             FolderView(vault: vault, path: vault.root)
                 .toolbar {
                     ToolbarItem(placement: .navigationBarLeading) {
-                        Menu {
-                            Button("Switch Vault", systemImage: "folder.badge.gearshape") {
-                                appState.closeVault()
-                            }
-                            Button("Disconnect", systemImage: "eject", role: .destructive) {
-                                Task { await appState.disconnect() }
-                            }
-                        } label: {
-                            Image(systemName: "ellipsis.circle")
+                        Button("Settings", systemImage: "gearshape") {
+                            showingSettings = true
                         }
-                        .accessibilityLabel("Vault options")
                     }
                 }
                 .navigationDestination(for: VaultItem.self) { item in
@@ -40,6 +33,11 @@ struct VaultView: View {
                 }
         }
         .environmentObject(index)
+        .sheet(isPresented: $showingSettings) {
+            SettingsView(vault: vault)
+                .environmentObject(index)
+                .environmentObject(appState)
+        }
         .task {
             MarkdownEditorController.prepareSpare()
             await index.refresh()

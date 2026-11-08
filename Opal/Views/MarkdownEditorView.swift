@@ -20,6 +20,11 @@ struct MarkdownEditorView: View {
 
     @StateObject private var editor = MarkdownEditorController.make()
 
+    @AppStorage(EditorPreferences.startModeKey) private var startMode = MarkdownEditorController.Mode.live
+    @AppStorage(EditorPreferences.textScaleKey) private var textScale = 100
+    @AppStorage(EditorPreferences.autocorrectKey) private var autocorrect = true
+    @AppStorage(EditorPreferences.spellCheckKey) private var spellCheck = true
+
     @State private var isLoading = true
     @State private var loadError: String?
     @State private var errorMessage: String?
@@ -32,6 +37,9 @@ struct MarkdownEditorView: View {
     @State private var linkedNote: NoteLink?
     /// The name of a `[[link]]` that was tapped but has no note yet.
     @State private var missingNote: String?
+    /// Whether the note has been given its starting mode, which shouldn't undo
+    /// a switch made by hand when coming back from a linked note.
+    @State private var hasStartMode = false
 
     private static let autosaveDelay: Duration = .seconds(2)
 
@@ -73,6 +81,11 @@ struct MarkdownEditorView: View {
             }
         }
         .task {
+            if !hasStartMode {
+                editor.mode = startMode
+                hasStartMode = true
+            }
+            editor.setOptions(.init(textScale: textScale, autocorrect: autocorrect, spellCheck: spellCheck))
             editor.onOpenURL = { openURL($0) }
             editor.onOpenWikiLink = { target in Task { await open(wikiLink: target) } }
             editor.onOpenEmbed = { target, isWikiLink in
@@ -127,7 +140,7 @@ struct MarkdownEditorView: View {
             }
             Button("Cancel", role: .cancel) {}
         } message: { _ in
-            Text("Create it at the top of the vault?")
+            Text("Create it \(newNoteLocationDescription)?")
         }
     }
 
@@ -277,9 +290,29 @@ struct MarkdownEditorView: View {
         return nil
     }
 
-    /// Creates an empty note for a link with no target, where Obsidian puts new notes by default.
+    /// Where a note for a link with no target goes, as chosen in Settings.
+    private var newNoteFolder: String {
+        let settings = VaultSettings.load(for: vault)
+        switch settings.newNoteLocation {
+        case .vaultRoot: return vault.root
+        case .currentFolder: return VaultPath.parent(of: path)
+        case .folder: return vault.path(settings.newNoteFolder)
+        }
+    }
+
+    private var newNoteLocationDescription: String {
+        let folder = index.relativePath(newNoteFolder)
+        return folder.isEmpty ? "at the top of the vault" : "in “\(VaultPath.name(of: folder))”"
+    }
+
+    /// Creates an empty note for a link with no target, in the folder chosen in Settings.
     private func createNote(named name: String) async {
-        let newPath = vault.path(NoteIndex.noteFileName(for: name))
+        var folder = newNoteFolder
+        // A chosen folder that's since been renamed or deleted falls back to the top of the vault.
+        if folder != vault.root, (try? await vault.store.fileExists(folder)) != true {
+            folder = vault.root
+        }
+        let newPath = VaultPath.join([folder, NoteIndex.noteFileName(for: name)])
         do {
             // The index may be stale, so never overwrite a note that turns out to exist.
             if !(try await vault.store.fileExists(newPath)) {

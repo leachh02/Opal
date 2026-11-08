@@ -39,9 +39,33 @@ struct FileCache {
 
     private static var downloads: [URL: Task<URL, Error>] = [:]
 
+    // MARK: Every vault's copies
+
+    /// The space every vault's copies take up, in bytes.
+    nonisolated static func totalSize() async -> Int64 {
+        await Task.detached(priority: .utility) {
+            let keys: [URLResourceKey] = [.totalFileAllocatedSizeKey, .isRegularFileKey]
+            guard let files = FileManager.default.enumerator(at: root, includingPropertiesForKeys: keys) else { return 0 }
+            var total: Int64 = 0
+            for case let file as URL in files {
+                guard let values = try? file.resourceValues(forKeys: Set(keys)), values.isRegularFile == true else { continue }
+                total += Int64(values.totalFileAllocatedSize ?? 0)
+            }
+            return total
+        }.value
+    }
+
+    /// Deletes every vault's copies. Files are downloaded again when next shown.
+    nonisolated static func clearAll() throws {
+        guard FileManager.default.fileExists(atPath: root.path(percentEncoded: false)) else { return }
+        try FileManager.default.removeItem(at: root)
+    }
+
+    private nonisolated static var root: URL { URL.cachesDirectory.appending(component: "Files") }
+
     private var folder: URL {
         let name = vault.id.isEmpty ? "Default" : vault.id
-        return URL.cachesDirectory.appending(components: "Files", name.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? name)
+        return Self.root.appending(component: name.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? name)
     }
 
     private func relativePath(_ path: String) -> String {

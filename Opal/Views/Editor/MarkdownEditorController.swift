@@ -17,6 +17,14 @@ final class MarkdownEditorController: NSObject, ObservableObject {
         case source
     }
 
+    /// Settings from the Settings screen.
+    struct Options: Equatable {
+        /// A percentage of the iPhone's own text size.
+        var textScale = 100
+        var autocorrect = true
+        var spellCheck = true
+    }
+
     /// Formatting commands understood by `window.opal.exec` in the editor.
     enum Command: String {
         case bold, italic, strikethrough, highlight, code, task, indent, outdent, undo, redo
@@ -40,6 +48,7 @@ final class MarkdownEditorController: NSObject, ObservableObject {
     private var pendingContent: String?
     private var pendingLinkTargets: [[String: String]]?
     private var pendingSubpath: String?
+    private var options: Options?
 
     private(set) lazy var webView: WKWebView = makeWebView()
 
@@ -84,6 +93,21 @@ final class MarkdownEditorController: NSObject, ObservableObject {
         } else {
             pendingLinkTargets = encoded
         }
+    }
+
+    func setOptions(_ options: Options) {
+        guard options != self.options else { return }
+        self.options = options
+        applyOptions()
+    }
+
+    private func applyOptions() {
+        guard let options else { return }
+        call("window.opal.setOptions(options)", ["options": [
+            "textScale": options.textScale,
+            "autocorrect": options.autocorrect,
+            "spellcheck": options.spellCheck,
+        ]])
     }
 
     /// Scrolls to the `heading` or `^block-id` of a `[[note#heading]]` link.
@@ -152,6 +176,7 @@ final class MarkdownEditorController: NSObject, ObservableObject {
         switch type {
         case "ready":
             isReady = true
+            applyOptions()
             if let content = pendingContent {
                 pendingContent = nil
                 call("window.opal.setContent(text)", ["text": content])
