@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import UniformTypeIdentifiers
 import WebKit
 
 @MainActor
@@ -30,6 +31,11 @@ final class MarkdownEditorController: NSObject, ObservableObject {
 
     var onOpenWikiLink: ((String) -> Void)?
     var onOpenURL: ((URL) -> Void)?
+    /// A tapped embedded image, to show full screen. `isWikiLink` is as for `onLoadEmbed`.
+    var onOpenEmbed: ((_ target: String, _ isWikiLink: Bool) -> Void)?
+    /// A local copy of the file an embed points at, so the editor can show it.
+    /// `isWikiLink` is true for `![[file]]` and false for `![](path)`.
+    var onLoadEmbed: ((_ target: String, _ isWikiLink: Bool) async -> URL?)?
 
     private var pendingContent: String?
     private var pendingLinkTargets: [[String: String]]?
@@ -122,6 +128,7 @@ final class MarkdownEditorController: NSObject, ObservableObject {
     private func makeWebView() -> WKWebView {
         let configuration = WKWebViewConfiguration()
         configuration.userContentController.add(WeakMessageHandler(self), name: "opal")
+        configuration.setURLSchemeHandler(EmbedSchemeHandler(self), forURLScheme: EmbedSchemeHandler.scheme)
 
         let webView = WKWebView(frame: .zero, configuration: configuration)
         webView.isOpaque = false
@@ -168,6 +175,10 @@ final class MarkdownEditorController: NSObject, ObservableObject {
             if let target = message["target"] as? String {
                 onOpenWikiLink?(target)
             }
+        case "openEmbed":
+            if let target = message["target"] as? String {
+                onOpenEmbed?(target, message["kind"] as? String == "wiki")
+            }
         case "openURL":
             if let string = message["url"] as? String, let url = URL(string: string) {
                 onOpenURL?(url)
@@ -191,5 +202,46 @@ private final class WeakMessageHandler: NSObject, WKScriptMessageHandler {
         MainActor.assumeIsolated {
             controller?.handle(body)
         }
+    }
+}
+
+/// Serves `opal-file://embed?target=…&kind=wiki|markdown` to the editor, so
+/// embedded images load from the vault.
+private final class EmbedSchemeHandler: NSObject, WKURLSchemeHandler {
+    static let scheme = "opal-file"
+
+    weak var controller: MarkdownEditorController?
+    /// Loads the web view cancelled, which mustn't be answered.
+    private var stopped: Set<ObjectIdentifier> = []
+
+    init(_ controller: MarkdownEditorController) {
+        self.controller = controller
+    }
+
+    func webView(_ webView: WKWebView, start task: any WKURLSchemeTask) {
+        let id = ObjectIdentifier(task)
+        let url = task.request.url
+        let query = url.flatMap { URLComponents(url: $0, resolvingAgainstBaseURL: false)?.queryItems } ?? []
+        let target = query.first { $0.name == "target" }?.value ?? ""
+        let isWikiLink = query.first { $0.name == "kind" }?.value == "wiki"
+
+        MainActor.assumeIsolated {
+            Task { @MainActor in
+                let file = await self.controller?.onLoadEmbed?(target, isWikiLink)
+                guard self.stopped.remove(id) == nil else { return }
+                guard let url, let file, let data = try? Data(contentsOf: file) else {
+                    task.didFailWithError(URLError(.fileDoesNotExist))
+                    return
+                }
+                let mimeType = UTType(filenameExtension: file.pathExtension)?.preferredMIMEType ?? "application/octet-stream"
+                task.didReceive(URLResponse(url: url, mimeType: mimeType, expectedContentLength: data.count, textEncodingName: nil))
+                task.didReceive(data)
+                task.didFinish()
+            }
+        }
+    }
+
+    func webView(_ webView: WKWebView, stop task: any WKURLSchemeTask) {
+        stopped.insert(ObjectIdentifier(task))
     }
 }

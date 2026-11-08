@@ -75,6 +75,10 @@ struct MarkdownEditorView: View {
         .task {
             editor.onOpenURL = { openURL($0) }
             editor.onOpenWikiLink = { target in Task { await open(wikiLink: target) } }
+            editor.onOpenEmbed = { target, isWikiLink in
+                if let file = embeddedFile(target, isWikiLink: isWikiLink) { linkedNote = NoteLink(path: file, subpath: nil) }
+            }
+            editor.onLoadEmbed = { target, isWikiLink in await localFile(forEmbed: target, isWikiLink: isWikiLink) }
             await loadFile()
             if let subpath { editor.reveal(subpath: subpath) }
         }
@@ -91,7 +95,11 @@ struct MarkdownEditorView: View {
             Task { await save() }
         }
         .navigationDestination(item: $linkedNote) { link in
-            MarkdownEditorView(vault: vault, path: link.path, subpath: link.subpath)
+            if FileKind(fileName: link.path) == .markdown {
+                MarkdownEditorView(vault: vault, path: link.path, subpath: link.subpath)
+            } else {
+                FilePreviewView(vault: vault, path: link.path, modified: index.modified(link.path))
+            }
         }
         .alert("Error", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
             Button("OK") {}
@@ -212,16 +220,44 @@ struct MarkdownEditorView: View {
             return
         }
 
-        guard FileKind(fileName: resolved) == .markdown else {
-            errorMessage = "Opal can't open “\((resolved as NSString).lastPathComponent)” yet. Only Markdown notes can be opened for now."
-            return
-        }
         if resolved == path {
             if let subpath { editor.reveal(subpath: subpath) }
             return
         }
         await save()
         linkedNote = NoteLink(path: resolved, subpath: subpath)
+    }
+
+    /// A local copy of the file an embed points at, for the editor to show.
+    private func localFile(forEmbed target: String, isWikiLink: Bool) async -> URL? {
+        if !index.isLoaded { await index.refresh() }
+        guard let file = embeddedFile(target, isWikiLink: isWikiLink) else { return nil }
+        return try? await FileCache(vault: vault).localURL(for: file, modified: index.modified(file))
+    }
+
+    /// `![[name]]` resolves like a link. `![](path)` is a path from the note's folder
+    /// or the top of the vault, falling back to the file's name as Obsidian does.
+    private func embeddedFile(_ target: String, isWikiLink: Bool) -> String? {
+        if isWikiLink { return index.resolve(target, from: path) }
+        let decoded = target.removingPercentEncoding ?? target
+        for base in [VaultPath.parent(of: path), vault.root] {
+            let candidate = Self.resolvingDots(VaultPath.join([base, decoded]))
+            if index.contains(candidate) { return candidate }
+        }
+        return index.resolve(VaultPath.name(of: decoded), from: path)
+    }
+
+    /// Applies `.` and `..` in a path, as in `![](../images/photo.png)`.
+    private static func resolvingDots(_ path: String) -> String {
+        var parts: [Substring] = []
+        for part in path.split(separator: "/") {
+            switch part {
+            case ".": continue
+            case "..": _ = parts.popLast()
+            default: parts.append(part)
+            }
+        }
+        return parts.joined(separator: "/")
     }
 
     /// Checks the places a note added since the last index is most likely to be: this

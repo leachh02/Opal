@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' file:; style-src 'self' 'unsafe-inline' file:; img-src data: blob: file:">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' file:; style-src 'self' 'unsafe-inline' file:; img-src data: blob: file: opal-file: https:">
 <title>Opal Editor</title>
 <style>
   :root {
@@ -94,6 +94,9 @@
   .cm-embed { color: var(--accent); background: var(--code-bg); border-radius: 6px; padding: 1px 6px; font-size: 0.9em; }
   .cm-embed::before { content: "↪ "; }
   .cm-image::before { content: "🖼 "; }
+  .cm-embed-image { display: block; max-width: 100%; height: auto; object-fit: contain; border-radius: 6px; margin: 4px 0; }
+  .cm-embed-missing { opacity: 0.6; }
+  .cm-embed-missing::before { content: "🖼 "; }
 
   .cm-table { font-family: var(--mono); font-size: 0.85em; white-space: pre; }
   .cm-table-delimiter { color: var(--muted); }

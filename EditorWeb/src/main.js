@@ -108,6 +108,7 @@ function scheduleChange() {
 }
 
 view.dom.addEventListener("opal-open-wikilink", (e) => post({ type: "openWikiLink", target: e.detail }))
+view.dom.addEventListener("opal-open-embed", (e) => post({ type: "openEmbed", target: e.detail.target, kind: e.detail.kind }))
 view.dom.addEventListener("opal-open-url", (e) => post({ type: "openURL", url: e.detail }))
 
 /** Wrap each selection in `marker`, or unwrap it if it is already wrapped. */

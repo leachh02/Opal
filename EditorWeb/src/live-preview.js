@@ -63,6 +63,108 @@ class TextWidget extends WidgetType {
   }
 }
 
+const IMAGE_RE = /\.(png|jpe?g|gif|webp|svg|bmp|avif|heic)$/i
+
+/** Whether a link target or URL names an image file. */
+function isImage(target) {
+  return IMAGE_RE.test(target.split(/[?#]/)[0].trim())
+}
+
+/** The URL the editor loads an embedded file from: Swift serves `opal-file:` from the vault. */
+function embedSource(target, kind) {
+  if (kind === "markdown" && /^https:\/\//i.test(target)) return target
+  return "opal-file://embed?kind=" + kind + "&target=" + encodeURIComponent(target)
+}
+
+/** Obsidian's size option, `|300` or `|300x200`, as a width and height in pixels. */
+function embedSize(option) {
+  const match = /^\s*(\d+)(?:\s*x\s*(\d+))?\s*$/.exec(option || "")
+  return match ? { width: Number(match[1]), height: match[2] ? Number(match[2]) : null } : null
+}
+
+const TAP_SLOP_PX = 10
+
+/** An embedded image. `target` and `kind` are given for vault files, which open full screen when tapped. */
+class ImageWidget extends WidgetType {
+  constructor(src, alt, size, target, kind) {
+    super(); this.src = src; this.alt = alt; this.size = size; this.target = target; this.kind = kind
+  }
+  eq(other) {
+    return other.src === this.src && other.alt === this.alt && other.target === this.target &&
+      other.size?.width === this.size?.width && other.size?.height === this.size?.height
+  }
+  toDOM(view) {
+    // CodeMirror tracks the widget's root element, so only its contents are swapped on error.
+    const wrap = document.createElement("span")
+    wrap.className = "cm-embed-wrap"
+    const img = document.createElement("img")
+    img.className = "cm-embed-image"
+    img.alt = this.alt
+    img.src = this.src
+    if (this.size) {
+      img.style.width = this.size.width + "px"
+      if (this.size.height) img.style.height = this.size.height + "px"
+    }
+    // The line grows once the image arrives, so CodeMirror has to measure again.
+    img.addEventListener("load", () => view.requestMeasure())
+    img.addEventListener("error", () => {
+      const missing = document.createElement("span")
+      missing.className = "cm-embed cm-embed-missing"
+      missing.textContent = this.alt
+      img.replaceWith(missing)
+      view.requestMeasure()
+    })
+    if (this.target != null) this.openOnTap(view, img)
+    wrap.appendChild(img)
+    return wrap
+  }
+  /** Tapping the image opens it, but a drag over it still scrolls. */
+  openOnTap(view, img) {
+    let start = null
+    const open = () => view.dom.dispatchEvent(new CustomEvent("opal-open-embed", {
+      detail: { target: this.target, kind: this.kind }, bubbles: true,
+    }))
+    img.addEventListener("touchstart", (e) => {
+      start = e.touches.length === 1 ? { x: e.touches[0].clientX, y: e.touches[0].clientY } : null
+    }, { passive: true })
+    img.addEventListener("touchmove", (e) => {
+      const touch = e.touches[0]
+      if (start && Math.hypot(touch.clientX - start.x, touch.clientY - start.y) > TAP_SLOP_PX) start = null
+    }, { passive: true })
+    img.addEventListener("touchend", (e) => {
+      if (!start) return
+      start = null
+      // As with embed chips, cancelling touchend stops the cursor moving and the keyboard opening.
+      e.preventDefault()
+      open()
+    })
+    img.addEventListener("mousedown", (e) => e.preventDefault())
+    img.addEventListener("click", open)
+  }
+  get estimatedHeight() { return this.size?.height ?? 200 }
+}
+
+/** An embedded file that isn't shown inline, tapped to open it. */
+class EmbedLinkWidget extends WidgetType {
+  constructor(target, label) { super(); this.target = target; this.label = label }
+  eq(other) { return other.target === this.target && other.label === this.label }
+  toDOM(view) {
+    const chip = document.createElement("span")
+    chip.className = "cm-embed"
+    chip.textContent = this.label
+    const open = (e) => {
+      e.preventDefault()
+      view.dom.dispatchEvent(new CustomEvent("opal-open-wikilink", { detail: this.target, bubbles: true }))
+    }
+    // As with checkboxes, cancelling touchend stops the cursor moving and the keyboard opening.
+    chip.addEventListener("touchend", open)
+    chip.addEventListener("mousedown", (e) => e.preventDefault())
+    chip.addEventListener("click", open)
+    return chip
+  }
+  ignoreEvent() { return true }
+}
+
 class RuleWidget extends WidgetType {
   eq() { return true }
   toDOM() {
@@ -119,6 +221,12 @@ function buildDecorations(view) {
       decos.push(Decoration.line({ class: cls }).range(line.from))
       pos = line.to + 1
     }
+  }
+
+  // Images stay visible while their syntax is being edited, shown after it.
+  const showEmbed = (node, widget, active) => {
+    if (active) decos.push(Decoration.widget({ widget, side: 1 }).range(node.to))
+    else replace(node.from, node.to, Decoration.replace({ widget }))
   }
 
   for (const { from, to } of view.visibleRanges) {
@@ -243,10 +351,21 @@ function buildDecorations(view) {
           }
 
           case "Image": {
-            if (active) return false
             const marks = node.getChildren("LinkMark")
-            const alt = marks.length >= 2 ? doc.sliceString(marks[0].to, marks[1].from) : ""
-            replace(node.from, node.to, Decoration.replace({ widget: new TextWidget(alt || "Image", "cm-embed cm-image") }))
+            const url = node.getChild("URL")
+            const label = marks.length >= 2 ? doc.sliceString(marks[0].to, marks[1].from) : ""
+            const href = url ? doc.sliceString(url.from, url.to) : ""
+            if (!href || !isImage(href)) {
+              if (!active) replace(node.from, node.to, Decoration.replace({ widget: new TextWidget(label || "Image", "cm-embed cm-image") }))
+              return false
+            }
+            // `![alt|300](photo.png)` sets the width, as in Obsidian.
+            const pipe = label.lastIndexOf("|")
+            const size = pipe >= 0 ? embedSize(label.slice(pipe + 1)) : null
+            const alt = size ? label.slice(0, pipe) : label
+            const remote = /^https:\/\//i.test(href)
+            const widget = new ImageWidget(embedSource(href, "markdown"), alt || href, size, remote ? null : href, "markdown")
+            showEmbed(node, widget, active)
             return false
           }
 
@@ -272,9 +391,13 @@ function buildDecorations(view) {
           }
 
           case "Embed": {
-            if (active) return false
-            const target = doc.sliceString(node.from + 3, node.to - 2).split("|")[0]
-            replace(node.from, node.to, Decoration.replace({ widget: new TextWidget(target, "cm-embed") }))
+            const [target, option] = doc.sliceString(node.from + 3, node.to - 2).split("|")
+            const file = target.split("#")[0]
+            if (isImage(file)) {
+              showEmbed(node, new ImageWidget(embedSource(file, "wiki"), file.trim(), embedSize(option), file, "wiki"), active)
+            } else if (!active) {
+              replace(node.from, node.to, Decoration.replace({ widget: new EmbedLinkWidget(target, option?.trim() || target) }))
+            }
             return false
           }
 
@@ -310,8 +433,6 @@ function openLink(view, el) {
   if (target != null) view.dom.dispatchEvent(new CustomEvent("opal-open-wikilink", { detail: target, bubbles: true }))
   else view.dom.dispatchEvent(new CustomEvent("opal-open-url", { detail: el.getAttribute("data-href"), bubbles: true }))
 }
-
-const TAP_SLOP_PX = 10
 
 export const livePreview = ViewPlugin.fromClass(class {
   constructor(view) {

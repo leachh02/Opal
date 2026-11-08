@@ -63,7 +63,7 @@ struct VaultView: View {
         case .markdown:
             MarkdownEditorView(vault: vault, path: item.path)
         default:
-            UnsupportedFileView(item: item)
+            FilePreviewView(vault: vault, path: item.path, modified: item.modified)
         }
     }
 }
@@ -337,19 +337,5 @@ private struct FileRow: View {
     private var subtitle: String {
         let size = ByteCountFormatter.string(fromByteCount: Int64(item.size), countStyle: .file)
         return "\(item.modified.formatted(.relative(presentation: .named))) · \(size)"
-    }
-}
-
-struct UnsupportedFileView: View {
-    let item: VaultItem
-
-    var body: some View {
-        ContentUnavailableView(
-            "Can't Open This File Yet",
-            systemImage: item.kind.systemImage,
-            description: Text("Opal can only open Markdown notes for now. Support for images, PDFs and media is coming.")
-        )
-        .navigationTitle(item.name)
-        .navigationBarTitleDisplayMode(.inline)
     }
 }

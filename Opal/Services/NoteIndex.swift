@@ -194,6 +194,16 @@ final class NoteIndex: ObservableObject {
         LinkResolver(files: files).resolve(target, from: relativePath(notePath)).map { vault.path($0) }
     }
 
+    /// Whether the index has a file at `path`.
+    func contains(_ path: String) -> Bool {
+        files.contains(relativePath(path))
+    }
+
+    /// When a file was last modified, as of the last refresh.
+    func modified(_ path: String) -> Date? {
+        modifiedTimes[relativePath(path)]
+    }
+
     /// Autocomplete entries. Notes drop their `.md`; a name used more than once
     /// links by its path so each entry points at the right file.
     var linkTargets: [LinkTarget] {
