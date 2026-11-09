@@ -47,9 +47,11 @@
   /* The text size setting scales the iPhone's own text size. */
   .cm-content { font-size: calc(var(--text-scale, 1) * 100%); }
   .cm-editor.cm-focused { outline: none; }
-  .cm-scroller { line-height: 1.5; overflow: auto; -webkit-overflow-scrolling: touch; }
-  .cm-content { padding: 16px max(16px, env(safe-area-inset-right)) 40vh max(16px, env(safe-area-inset-left)); caret-color: var(--accent); }
-  .cm-line { padding: 0; }
+  /* CodeMirror adds its own styles after these, so ours are scoped to #editor to outrank them. */
+  #editor .cm-scroller { line-height: 1.5; overflow: auto; -webkit-overflow-scrolling: touch; }
+  /* The bottom padding lets the last lines scroll up above the keyboard. */
+  #editor .cm-content { padding: 16px max(16px, env(safe-area-inset-right)) 40vh max(16px, env(safe-area-inset-left)); caret-color: var(--accent); }
+  #editor .cm-line { padding: 0; }
 
   .cm-heading { font-weight: 700; }
   .cm-h1 { font-size: 1.75em; line-height: 1.3; }
@@ -103,9 +105,8 @@
   /* A table's source, shown while editing it. It wraps so no cell is out of sight. */
   .cm-table { font-family: var(--mono); font-size: 0.85em; }
   .cm-table-delimiter { color: var(--muted); }
-  /* Lines are inset 6px by CodeMirror, so the grid lines up with the text. */
   /* Containment keeps a wide table from widening the note, so only the table scrolls sideways. */
-  .cm-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 6px 2px 6px 6px; contain: inline-size; }
+  .cm-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 6px 0; contain: inline-size; }
   .cm-table-grid { border-collapse: collapse; line-height: 1.4; }
   /* Words stay whole, so a wide table scrolls sideways rather than breaking them. */
   .cm-table-grid th, .cm-table-grid td {
