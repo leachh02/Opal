@@ -12,8 +12,19 @@
 		7EB1622A2E3836D200292DD6 /* FlyingSocks in Frameworks */ = {isa = PBXBuildFile; productRef = 7EB162292E3836D200292DD6 /* FlyingSocks */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		7EC0A0072EF0000000000000 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 7EB161D92E37049A00292DD6 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 7EB161E02E37049B00292DD6;
+			remoteInfo = Opal;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
 		7EB162532E3AEBC000292DD6 /* Opal.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Opal.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		7EC0A0012EF0000000000000 /* OpalTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = OpalTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -35,6 +46,11 @@
 			path = Opal;
 			sourceTree = "<group>";
 		};
+		7EC0A0022EF0000000000000 /* OpalTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = OpalTests;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -48,6 +64,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		7EC0A0032EF0000000000000 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -56,6 +79,8 @@
 			children = (
 				7EB161E32E37049B00292DD6 /* Opal */,
 				7EB162532E3AEBC000292DD6 /* Opal.app */,
+				7EC0A0022EF0000000000000 /* OpalTests */,
+				7EC0A0012EF0000000000000 /* OpalTests.xctest */,
 			);
 			sourceTree = "<group>";
 		};
@@ -87,6 +112,29 @@
 			productReference = 7EB162532E3AEBC000292DD6 /* Opal.app */;
 			productType = "com.apple.product-type.application";
 		};
+		7EC0A0062EF0000000000000 /* OpalTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 7EC0A00B2EF0000000000000 /* Build configuration list for PBXNativeTarget "OpalTests" */;
+			buildPhases = (
+				7EC0A0042EF0000000000000 /* Sources */,
+				7EC0A0032EF0000000000000 /* Frameworks */,
+				7EC0A0052EF0000000000000 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				7EC0A0082EF0000000000000 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				7EC0A0022EF0000000000000 /* OpalTests */,
+			);
+			name = OpalTests;
+			packageProductDependencies = (
+			);
+			productName = OpalTests;
+			productReference = 7EC0A0012EF0000000000000 /* OpalTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -99,6 +147,10 @@
 				TargetAttributes = {
 					7EB161E02E37049B00292DD6 = {
 						CreatedOnToolsVersion = 16.4;
+					};
+					7EC0A0062EF0000000000000 = {
+						CreatedOnToolsVersion = 27.1;
+						TestTargetID = 7EB161E02E37049B00292DD6;
 					};
 				};
 			};
@@ -121,12 +173,20 @@
 			projectRoot = "";
 			targets = (
 				7EB161E02E37049B00292DD6 /* Opal */,
+				7EC0A0062EF0000000000000 /* OpalTests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		7EB161DF2E37049B00292DD6 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		7EC0A0052EF0000000000000 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -143,7 +203,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		7EC0A0042EF0000000000000 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		7EC0A0082EF0000000000000 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 7EB161E02E37049B00292DD6 /* Opal */;
+			targetProxy = 7EC0A0072EF0000000000000 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		7EB161EA2E37049B00292DD6 /* Debug */ = {
@@ -327,6 +402,42 @@
 			};
 			name = Release;
 		};
+		7EC0A0092EF0000000000000 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 8RSAFN4U5T;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "leach-eng.OpalTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Opal.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Opal";
+			};
+			name = Debug;
+		};
+		7EC0A00A2EF0000000000000 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 8RSAFN4U5T;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "leach-eng.OpalTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Opal.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Opal";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -344,6 +455,15 @@
 			buildConfigurations = (
 				7EB161ED2E37049B00292DD6 /* Debug */,
 				7EB161EE2E37049B00292DD6 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		7EC0A00B2EF0000000000000 /* Build configuration list for PBXNativeTarget "OpalTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				7EC0A0092EF0000000000000 /* Debug */,
+				7EC0A00A2EF0000000000000 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

@@ -31,7 +31,7 @@ export function tableLines(doc, node) {
 }
 
 /** Splits a row on its unescaped pipes, keeping each cell's offset within the line. */
-function splitRow(text) {
+export function splitRow(text) {
   const cells = []
   let start = 0
   let ticks = 0
@@ -61,7 +61,7 @@ function splitRow(text) {
   })
 }
 
-function alignment(cell) {
+export function alignment(cell) {
   const left = cell.startsWith(":")
   const right = cell.endsWith(":")
   return left && right ? "center" : right ? "right" : left ? "left" : null
