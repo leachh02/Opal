@@ -1,6 +1,6 @@
 # Opal – Obsidian Vault Browser & Editor for iOS
 
-**Opal** is a SwiftUI-based iOS app that lets you connect to an SMB server and browse your Obsidian vaults. With a simple, lightweight live-preview Markdown editor, it's the perfect way to work with your notes stored on your home network — no cloud required.
+**Opal** is a SwiftUI-based iOS app that lets you connect to an SMB server and browse your Obsidian vaults. With a simple, lightweight live-preview Markdown editor, it's the perfect way to work with your notes stored on your home network (no cloud required).
 
 ---
 
@@ -55,10 +55,9 @@ Debug builds launched with the `-OpalEditorDemo` argument open the editor with s
 
 ---
 
-
 ## Sponsorship / Support
 
-I built Opal to scratch my own itch — but if you've found it useful and want to help cover publishing costs (e.g. the $150 AUD/year Apple Developer fee), feel free to:
+I built Opal to scratch my own itch, but if you've found it useful and want to help cover publishing costs (e.g. the $150 AUD/year Apple Developer fee), feel free to:
 
 - Star this repo to show support
 - [Buy me a coffee](https://buymeacoffee.com/leachh02)
@@ -68,8 +67,8 @@ I built Opal to scratch my own itch — but if you've found it useful and want t
 
 ## Roadmap
 
-- Multiple vault support
-- iPad layout
+- [ ] Multiple vault support
+- [ ] iPad layout
 
 ---
 
@@ -79,4 +78,4 @@ MIT © Harrison Leach
 
 ---
 
-Opal was built with love and local-first privacy in mind. Enjoy writing offline. ✍️
+Opal was built with love and local-first privacy in mind. Enjoy writing!
