@@ -1,20 +1,20 @@
-# Opal – Obsidian Vault Browser & Editor for iOS 📁📝
+# Opal – Obsidian Vault Browser & Editor for iOS
 
 **Opal** is a SwiftUI-based iOS app that lets you connect to an SMB server and browse your Obsidian vaults. With a simple, lightweight live-preview Markdown editor, it's the perfect way to work with your notes stored on your home network — no cloud required.
 
 ---
 
-## ✨ Features
+## Features
 
-- 📡 Connect to an SMB file server
-- 📂 Browse folders and files like the iOS Notes app
-- 🖋️ Edit Markdown files with a live preview editor built on CodeMirror
-- 🔐 Local-first, privacy-respecting
-- 💡 Supports nested vaults and custom share paths
+- Connect to an SMB file server
+- Browse folders and files like the iOS Notes app
+- Edit Markdown files with a live preview editor built on CodeMirror
+- Local-first, privacy-respecting
+- Supports nested vaults and custom share paths
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Requirements
 
@@ -47,7 +47,7 @@ Debug builds launched with the `-OpalEditorDemo` argument open the editor with s
 
 ---
 
-## 🧱 Built With
+## Built With
 
 - [SMBClient](https://github.com/kishikawakatsumi/SMBClient) – Swift-native SMB library
 - [CodeMirror 6](https://codemirror.net) – the Markdown editor, running in a web view
@@ -56,24 +56,24 @@ Debug builds launched with the `-OpalEditorDemo` argument open the editor with s
 ---
 
 
-## 💸 Sponsorship / Support
+## Sponsorship / Support
 
 I built Opal to scratch my own itch — but if you've found it useful and want to help cover publishing costs (e.g. the $150 AUD/year Apple Developer fee), feel free to:
 
-- ⭐ Star this repo to show support
-- ☕ [Buy me a coffee](https://buymeacoffee.com/leachh02)
-- 💌 [Sponsor me on GitHub](https://github.com/sponsors/leachh02)
+- Star this repo to show support
+- [Buy me a coffee](https://buymeacoffee.com/leachh02)
+- [Sponsor me on GitHub](https://github.com/sponsors/leachh02)
 
 ---
 
-## 📢 Roadmap
+## Roadmap
 
 - Multiple vault support
 - iPad layout
 
 ---
 
-## 📄 License
+## License
 
 MIT © Harrison Leach
 
