@@ -26,8 +26,8 @@
 ### Clone & Run
 
 ```bash
-git clone https://github.com/leachh02/opal.git
-cd opal
+git clone https://github.com/leachh02/Opal.git
+cd Opal
 open Opal.xcodeproj
 ```
 
@@ -55,26 +55,20 @@ Debug builds launched with the `-OpalEditorDemo` argument open the editor with s
 
 ---
 
-## 💸 App Store Distribution
-
-Unfortunately, I discovered that publishing an app on the App Store requires an Apple developer account enrolled in the Apple Developer Program, which costs $150 AUD/year... Sadly, I can't justify the funds for this at the moment, especially considering this is a passion project. However, if this project garners enough traction and there is demand for it, I would be keen to get it out to the public!
-
----
 
 ## 💸 Sponsorship / Support
 
 I built Opal to scratch my own itch — but if you've found it useful and want to help cover publishing costs (e.g. the $150 AUD/year Apple Developer fee), feel free to:
 
 - ⭐ Star this repo to show support
-- ☕ Buy me a coffee
-- 💌 Sponsor me on GitHub
+- ☕ [Buy me a coffee](https://buymeacoffee.com/leachh02)
+- 💌 [Sponsor me on GitHub](https://github.com/sponsors/leachh02)
 
 ---
 
 ## 📢 Roadmap
 
 - Multiple vault support
-- Image support and local preview
 - iPad layout
 
 ---
