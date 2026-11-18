@@ -39,6 +39,18 @@ extension ConnectionSettings {
         )
     }
 
+    /// Forgets the saved server, including settings saved by earlier versions.
+    static func removeSaved(from defaults: UserDefaults = .standard) {
+        for key in [defaultsKey, "host", "share", "displayName", "port"] {
+            defaults.removeObject(forKey: key)
+        }
+    }
+
+    /// Whether these settings are for the same share as a saved server.
+    func matches(_ server: Server) -> Bool {
+        host == server.server && port == server.port && share == server.share
+    }
+
     func save(to defaults: UserDefaults = .standard) {
         if let data = try? JSONEncoder().encode(self) {
             defaults.set(data, forKey: Self.defaultsKey)

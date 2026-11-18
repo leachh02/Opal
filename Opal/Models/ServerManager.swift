@@ -5,8 +5,12 @@ class ServerManager {
   static let serversDidUpdate = Notification.Name("ServerManagerServersDidUpdate")
 
   private(set) var servers = [Server]()
+  private let defaults: UserDefaults
 
-  private init() {}
+  /// Pass other defaults to keep a separate list, as tests do.
+  init(defaults: UserDefaults = .standard) {
+    self.defaults = defaults
+  }
 
   /// Saves a server, replacing any saved entry for the same share.
   func addServer(_ settings: ConnectionSettings) {
@@ -40,13 +44,13 @@ class ServerManager {
     let encoder = PropertyListEncoder()
     encoder.outputFormat = .binary
     if let data = try? encoder.encode(servers) {
-      UserDefaults.standard.setValue(data, forKey: "servers")
+      defaults.setValue(data, forKey: "servers")
     }
     NotificationCenter.default.post(name: Self.serversDidUpdate, object: self)
   }
 
   func restoreSavedServers() {
-    guard let data = UserDefaults.standard.data(forKey: "servers") else {
+    guard let data = defaults.data(forKey: "servers") else {
       return
     }
 

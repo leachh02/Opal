@@ -35,12 +35,14 @@ final class AppState: ObservableObject {
 
     private static let vaultPathKey = "vaultPath"
     private let defaults: UserDefaults
+    private let servers: ServerManager
     private let connection = SMBConnectionService()
     /// Kept in memory so dropped sessions can be reopened even when the password isn't saved.
     private var password = ""
 
-    init(defaults: UserDefaults = .standard) {
+    init(defaults: UserDefaults = .standard, servers: ServerManager = .shared) {
         self.defaults = defaults
+        self.servers = servers
         settings = ConnectionSettings.loadSaved(from: defaults)
         if let path = defaults.string(forKey: Self.vaultPathKey) {
             vaultPath = path
@@ -76,8 +78,23 @@ final class AppState: ObservableObject {
                 password: password
             )
         }
-        ServerManager.shared.addServer(newSettings)
+        servers.addServer(newSettings)
         openStore(with: accessor)
+    }
+
+    /// Removes a saved server and its password. If it's the last server
+    /// connected to, the app stops offering to reconnect to it.
+    func forget(_ server: Server) {
+        servers.removeServer(server)
+        if let share = server.share {
+            CredentialStore.shared.delete(server: server.server, securityDomain: share)
+        }
+        guard let settings, settings.matches(server), store == nil, status != .connecting else { return }
+        self.settings = nil
+        ConnectionSettings.removeSaved(from: defaults)
+        vaultPath = nil
+        password = ""
+        status = .disconnected
     }
 
     /// Reconnects to the saved server, e.g. at launch.

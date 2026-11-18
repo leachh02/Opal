@@ -59,6 +59,16 @@ class CredentialStore {
 
     return status == errSecSuccess
   }
+
+  /// Deletes the saved password for a share, if there is one.
+  func delete(server: String, securityDomain: String) {
+    let query: [String: Any] = [
+      kSecClass as String: kSecClassInternetPassword,
+      kSecAttrServer as String: server,
+      kSecAttrSecurityDomain as String: securityDomain,
+    ]
+    SecItemDelete(query as CFDictionary)
+  }
 }
 
 struct Credential {

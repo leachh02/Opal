@@ -77,6 +77,11 @@ struct ConnectToServerView: View {
                                     }
                                 }
                             }
+                            .swipeActions {
+                                Button("Remove", role: .destructive) {
+                                    forget(server)
+                                }
+                            }
                         }
                     }
                 }
@@ -170,6 +175,20 @@ struct ConnectToServerView: View {
         username = server.username ?? ""
         isRegistered = server.username != nil
         password = savedPassword(host: server.server, share: share)
+    }
+
+    /// Removes a saved server, and clears the form if it was showing that server.
+    private func forget(_ server: Server) {
+        if trimmedHost == server.server && Int(port) == server.port && trimmedShare == server.share {
+            displayName = ""
+            host = ""
+            port = ""
+            share = ""
+            username = ""
+            password = ""
+            isRegistered = false
+        }
+        appState.forget(server)
     }
 
     private func savedPassword(host: String, share: String) -> String {
