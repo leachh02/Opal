@@ -12,6 +12,7 @@ struct VaultView: View {
     @EnvironmentObject var appState: AppState
     @StateObject private var index: NoteIndex
     @State private var showingSettings = false
+    @State private var searchText = ""
 
     init(vault: Vault) {
         self.vault = vault
@@ -21,6 +22,12 @@ struct VaultView: View {
     var body: some View {
         NavigationStack {
             FolderView(vault: vault, path: vault.root)
+                .overlay {
+                    if !searchText.trimmingCharacters(in: .whitespaces).isEmpty {
+                        SearchResultsView(vault: vault, query: searchText)
+                    }
+                }
+                .searchable(text: $searchText, prompt: "Search Files")
                 .toolbar {
                     ToolbarItem(placement: .navigationBarLeading) {
                         Button("Settings", systemImage: "gearshape") {
@@ -299,6 +306,63 @@ struct FolderView: View {
             try await operation()
         } catch {
             alert = ("Couldn't do that", error.localizedDescription)
+        }
+    }
+}
+
+/// Files and folders anywhere in the vault whose name matches the search.
+private struct SearchResultsView: View {
+    let vault: Vault
+    let query: String
+
+    @EnvironmentObject private var index: NoteIndex
+
+    var body: some View {
+        let results = FileSearch.matches(query, files: index.files, folders: index.folders)
+        List(results, id: \.path) { match in
+            SearchResultRow(match: match, item: item(for: match))
+        }
+        .listStyle(.plain)
+        .overlay {
+            if results.isEmpty {
+                if index.isLoaded {
+                    ContentUnavailableView.search(text: query)
+                } else {
+                    ProgressView("Listing the vault…")
+                }
+            }
+        }
+        .background(Color(.systemBackground))
+    }
+
+    private func item(for match: FileSearch.Match) -> VaultItem {
+        let path = vault.path(match.path)
+        return VaultItem(path: path, name: VaultPath.name(of: path), isDirectory: match.isDirectory,
+                         size: 0, modified: index.modified(path) ?? .distantPast)
+    }
+}
+
+/// A search result: its name, and the folder it's in.
+private struct SearchResultRow: View {
+    let match: FileSearch.Match
+    let item: VaultItem
+
+    var body: some View {
+        ZStack(alignment: .leading) {
+            NavigationLink(value: item) { EmptyView() }
+                .opacity(0)
+            HStack(spacing: 12) {
+                Image(systemName: item.kind.systemImage)
+                    .foregroundStyle(item.kind == .folder ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
+                    .frame(width: 24)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(FileSearch.searchName(match))
+                    let folder = VaultPath.parent(of: match.path)
+                    Text(folder.isEmpty ? "Top of Vault" : folder)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
         }
     }
 }
