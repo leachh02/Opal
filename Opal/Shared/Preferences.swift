@@ -20,6 +20,17 @@ enum EditorPreferences {
     static let textScales = 80...160
 }
 
+/// UserDefaults keys for downloaded files.
+enum StoragePreferences {
+    /// Whether downloaded images and files are deleted each time Opal opens.
+    /// On by default; off keeps them until cleared in Settings.
+    static let clearDownloadsOnLaunchKey = "clearDownloadsOnLaunch"
+
+    static func clearsDownloadsOnLaunch(_ defaults: UserDefaults = .standard) -> Bool {
+        defaults.object(forKey: clearDownloadsOnLaunchKey) as? Bool ?? true
+    }
+}
+
 /// Where a note made by tapping a `[[link]]` to nothing is saved.
 enum NewNoteLocation: String, CaseIterable, Codable {
     case vaultRoot

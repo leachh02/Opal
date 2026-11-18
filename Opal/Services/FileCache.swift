@@ -3,7 +3,8 @@
 //  Opal
 //
 //  Local copies of vault files such as images and PDFs, for viewers that
-//  need a file on the device. A copy is kept until the server's changes.
+//  need a file on the device. A copy is reused until the server's changes.
+//  Copies are deleted each time the app launches, unless kept in Settings.
 //
 
 import Foundation
@@ -55,13 +56,25 @@ struct FileCache {
         }.value
     }
 
-    /// Deletes every vault's copies. Files are downloaded again when next shown.
-    nonisolated static func clearAll() throws {
-        guard FileManager.default.fileExists(atPath: root.path(percentEncoded: false)) else { return }
-        try FileManager.default.removeItem(at: root)
+    /// Deletes every vault's copies, at launch or from Settings. Files are
+    /// downloaded again when next shown. The folder is moved aside straight
+    /// away, so new downloads start afresh, and deleted in the background.
+    nonisolated static func clearAll() {
+        let files = FileManager.default
+        guard files.fileExists(atPath: root.path(percentEncoded: false)) else { return }
+        let old = files.temporaryDirectory.appending(component: "Old Files " + UUID().uuidString)
+        do {
+            try files.moveItem(at: root, to: old)
+        } catch {
+            try? files.removeItem(at: root)
+            return
+        }
+        Task.detached(priority: .background) {
+            try? FileManager.default.removeItem(at: old)
+        }
     }
 
-    private nonisolated static var root: URL { URL.cachesDirectory.appending(component: "Files") }
+    nonisolated static var root: URL { URL.cachesDirectory.appending(component: "Files") }
 
     private var folder: URL {
         let name = vault.id.isEmpty ? "Default" : vault.id

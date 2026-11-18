@@ -21,9 +21,10 @@ struct SettingsView: View {
     @AppStorage(EditorPreferences.spellCheckKey) private var spellCheck = true
 
     @State private var vaultSettings: VaultSettings
+    @AppStorage(StoragePreferences.clearDownloadsOnLaunchKey) private var clearDownloadsOnLaunch = true
+
     @State private var isPickingFolder = false
     @State private var cacheSize: Int64?
-    @State private var cacheError: String?
 
     init(vault: Vault) {
         self.vault = vault
@@ -98,6 +99,7 @@ struct SettingsView: View {
 
     private var storageSection: some View {
         Section {
+            Toggle("Clear When Opal Opens", isOn: $clearDownloadsOnLaunch)
             LabeledContent("Downloaded Files") {
                 if let cacheSize {
                     Text(ByteCountFormatter.string(fromByteCount: cacheSize, countStyle: .file))
@@ -106,23 +108,16 @@ struct SettingsView: View {
                 }
             }
             Button("Clear Downloaded Files", role: .destructive) {
-                do {
-                    try FileCache.clearAll()
-                    cacheSize = 0
-                } catch {
-                    cacheError = error.localizedDescription
-                }
+                FileCache.clearAll()
+                cacheSize = 0
             }
             .disabled(cacheSize == 0)
         } header: {
             Text("Storage")
         } footer: {
-            Text("Copies of images and other files Opal has shown, so they open quickly next time. Clearing them is safe: they're downloaded again when needed, and nothing on your server changes.")
-        }
-        .alert("Couldn't clear downloaded files", isPresented: Binding(get: { cacheError != nil }, set: { if !$0 { cacheError = nil } })) {
-            Button("OK") {}
-        } message: {
-            Text(cacheError ?? "")
+            Text(clearDownloadsOnLaunch
+                 ? "Copies of images and other files Opal has shown are kept while it's open, then deleted the next time it opens. Nothing on your server changes."
+                 : "Copies of images and other files Opal has shown are kept so they open quickly next time, until you clear them. Nothing on your server changes.")
         }
     }
 

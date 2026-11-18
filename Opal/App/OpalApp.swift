@@ -11,6 +11,13 @@ import SwiftUI
 struct OpalApp: App {
     @StateObject private var appState = AppState()
 
+    init() {
+        // Unless kept in Settings, downloaded images and files only last until the app is next opened.
+        if StoragePreferences.clearsDownloadsOnLaunch() {
+            FileCache.clearAll()
+        }
+    }
+
     var body: some Scene {
         WindowGroup {
             RootView()
