@@ -9,7 +9,7 @@ import { EditorSelection, EditorState } from "@codemirror/state"
 import { EditorView } from "@codemirror/view"
 import { isResolved, linkKey, setLinkableNames } from "../src/live-preview.js"
 import { obsidianSyntax } from "../src/obsidian-syntax.js"
-import { alignment, splitRow, tablePreview } from "../src/tables.js"
+import { addColumn, addRow, alignment, columnAt, splitRow, tablePreview } from "../src/tables.js"
 
 const cells = (row) => splitRow(row).map((cell) => cell.text)
 
@@ -70,6 +70,80 @@ describe("link resolution", () => {
   })
 })
 
+describe("adding table rows", () => {
+  /** Adds a row with the cursor at `marker`'s position, returning the text with `^` at the new cursor. */
+  function add(text) {
+    const pos = text.indexOf("^")
+    const state = EditorState.create({ doc: text.replace("^", "") })
+    const lines = text.replace("^", "").split("\n")
+    const first = state.doc.line(1)
+    const last = state.doc.line(lines.length)
+    const result = state.update(addRow(state.doc, first, last, pos)).state
+    const cursor = result.selection.main.head
+    return result.doc.sliceString(0, cursor) + "^" + result.doc.sliceString(cursor)
+  }
+
+  test("adds an empty row below the cursor's row", () => {
+    assert.equal(add("| a | b |\n| - | - |\n| 1^ | 2 |\n| 3 | 4 |"),
+      "| a | b |\n| - | - |\n| 1 | 2 |\n| ^ |  |\n| 3 | 4 |")
+  })
+
+  test("adds at the end from the last row", () => {
+    assert.equal(add("| a | b | c |\n| - | - | - |\n| 1 | 2 | 3^ |"),
+      "| a | b | c |\n| - | - | - |\n| 1 | 2 | 3 |\n| ^ |  |  |")
+  })
+
+  test("adds the first body row from the header or separator", () => {
+    assert.equal(add("| a^ | b |\n| - | - |\n| 1 | 2 |"), "| a | b |\n| - | - |\n| ^ |  |\n| 1 | 2 |")
+    assert.equal(add("| a | b |\n| -^ | - |"), "| a | b |\n| - | - |\n| ^ |  |")
+  })
+
+  test("follows a header without outer pipes", () => {
+    assert.equal(add("a | b\n- | -\n1^ | 2"), "a | b\n- | -\n1 | 2\n ^ |  ")
+  })
+
+  test("counts escaped pipes as part of a cell", () => {
+    assert.equal(add("| [[a\\|b]] | c |\n| - | - |^"), "| [[a\\|b]] | c |\n| - | - |\n| ^ |  |")
+  })
+})
+
+describe("adding table columns", () => {
+  /** Adds a column after column `after`, returning the text with `^` at the new cursor. */
+  function add(text, after) {
+    const state = EditorState.create({ doc: text })
+    const first = state.doc.line(1)
+    const last = state.doc.line(state.doc.lines)
+    const result = state.update(addColumn(state.doc, first, last, after)).state
+    const cursor = result.selection.main.head
+    return result.doc.sliceString(0, cursor) + "^" + result.doc.sliceString(cursor)
+  }
+
+  test("adds an empty column at the end, with the cursor in its header", () => {
+    assert.equal(add("| a | b |\n| - | - |\n| 1 | 2 |"),
+      "| a | b | ^ |\n| - | - | --- |\n| 1 | 2 |  |")
+  })
+
+  test("adds after a given column", () => {
+    assert.equal(add("| a | b |\n| - | - |\n| 1 | 2 |", 0),
+      "| a | ^ | b |\n| - | --- | - |\n| 1 |  | 2 |")
+  })
+
+  test("fills out short rows so the column lines up", () => {
+    assert.equal(add("| a | b |\n| - | - |\n| 1 |"), "| a | b | ^ |\n| - | - | --- |\n| 1 |  |  |")
+  })
+
+  test("follows a header without outer pipes", () => {
+    assert.equal(add("a | b\n- | -\n1 | 2"), "a | b | ^ \n- | - | --- \n1 | 2 |  ")
+  })
+
+  test("finds the cursor's column", () => {
+    const row = "| ab | cd | ef |"
+    assert.equal(columnAt(row, row.indexOf("ab")), 0)
+    assert.equal(columnAt(row, row.indexOf("cd") + 1), 1)
+    assert.equal(columnAt(row, row.length), 2)
+  })
+})
+
 describe("tables in live preview", () => {
   const table = "| Name | Tags |\n| --- | :-: |\n| [[Plan]] | #work |"
   const doc = `Intro\n\n${table}\n\nOutro`
@@ -88,14 +162,51 @@ describe("tables in live preview", () => {
     return state.update({ effects: focusEffect }).state
   }
 
-  function drawnTables(state) {
-    const ranges = []
+  function blockDecorations(state) {
+    const found = []
     for (const source of state.facet(EditorView.decorations)) {
       if (typeof source === "function") continue
-      source.between(0, state.doc.length, (from, to, deco) => { if (deco.spec.block) ranges.push([from, to]) })
+      source.between(0, state.doc.length, (from, to, deco) => { if (deco.spec.block) found.push({ from, to, deco }) })
     }
-    return ranges
+    return found
   }
+
+  const drawnTables = (state) =>
+    blockDecorations(state).filter(({ from, to }) => to > from).map(({ from, to }) => [from, to])
+  const addRowButtons = (state) =>
+    blockDecorations(state).filter(({ from, to }) => to === from).map(({ from }) => from)
+
+  /** The classes given to each line, for lines that have any. */
+  function lineClasses(state) {
+    const found = {}
+    for (const source of state.facet(EditorView.decorations)) {
+      if (typeof source === "function") continue
+      source.between(0, state.doc.length, (from, to, deco) => {
+        if (deco.spec.class) found[state.doc.lineAt(from).number] = deco.spec.class
+      })
+    }
+    return found
+  }
+
+  test("shows the add-row bar under a table being edited", () => {
+    assert.deepEqual(addRowButtons(stateFor(doc, tableFrom + 3, true)), [tableTo])
+  })
+
+  test("draws the add-column bar beside a table being edited, with the + in the middle", () => {
+    // The table is lines 3 to 5.
+    assert.deepEqual(lineClasses(stateFor(doc, tableFrom + 3, true)), {
+      3: "cm-table-edit-line cm-table-edit-first",
+      4: "cm-table-edit-line cm-table-edit-plus",
+      5: "cm-table-edit-line cm-table-edit-last",
+    })
+  })
+
+  test("shows no bars when not editing the table", () => {
+    for (const state of [stateFor(doc, 0, true), stateFor(doc, tableFrom + 3, false)]) {
+      assert.deepEqual(addRowButtons(state), [])
+      assert.deepEqual(lineClasses(state), {})
+    }
+  })
 
   test("draws a table as a grid", () => {
     assert.deepEqual(drawnTables(stateFor(doc, 0, false)), [[tableFrom, tableTo]])

@@ -115,6 +115,24 @@
   }
   .cm-table-grid th { background: var(--code-bg); font-weight: 600; }
   .cm-table-grid mark { color: inherit; }
+  /* While a table's text is being edited, a bar down its right side adds a column and
+     one along the bottom adds a row, as in Obsidian. Each line draws its part of the side bar. */
+  #editor .cm-line.cm-table-edit-line { position: relative; padding-right: 40px; }
+  .cm-table-edit-line::after {
+    content: ""; position: absolute; top: 0; bottom: 0; right: 0; width: 31px;
+    border: 1px solid var(--rule); border-top: none; border-bottom: none;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--muted); font-family: -apple-system, system-ui, sans-serif; font-size: 1.3em; font-weight: 300;
+  }
+  .cm-table-edit-first::after { border-top: 1px solid var(--rule); }
+  .cm-table-edit-last::after { border-bottom: 1px solid var(--rule); }
+  .cm-table-edit-plus::after { content: "+"; }
+  .cm-table-add {
+    display: flex; align-items: center; justify-content: center; height: 32px; margin: 0 32px 8px 0;
+    color: var(--muted); font-family: -apple-system, system-ui, sans-serif; font-size: 1.3em; font-weight: 300; line-height: 1;
+    border: 1px solid var(--rule); -webkit-tap-highlight-color: transparent; cursor: pointer; user-select: none;
+  }
+  .cm-table-add:active { background: var(--code-bg); }
 
   .cm-tooltip-autocomplete { border-radius: 10px; overflow: hidden; border: 1px solid var(--rule) !important; background: var(--bg) !important; }
   .cm-tooltip-autocomplete li[aria-selected] { background: var(--accent) !important; color: white !important; }

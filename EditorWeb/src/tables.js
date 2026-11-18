@@ -1,5 +1,6 @@
 // Markdown tables drawn as a grid in live preview. A table shows its source
-// again while the cursor is in it, and tapping a cell puts the cursor there.
+// again while the cursor is in it, with bars beside and under it to add a
+// column or a row, and tapping a cell puts the cursor there.
 //
 // Unlike the rest of live preview these are block decorations, which
 // CodeMirror only accepts from a state field, not a view plugin.
@@ -32,6 +33,18 @@ export function tableLines(doc, node) {
 
 /** Splits a row on its unescaped pipes, keeping each cell's offset within the line. */
 export function splitRow(text) {
+  return cellBounds(text).cells.map(({ from, to }) => {
+    const raw = text.slice(from, to)
+    const lead = raw.length - raw.trimStart().length
+    return { text: raw.trim(), offset: from + lead }
+  })
+}
+
+/**
+ * Where each cell of a row starts and ends, untrimmed. A cell ends at the pipe
+ * after it, or at the end of the line; `trailingPipe` says which for the last.
+ */
+function cellBounds(text) {
   const cells = []
   let start = 0
   let ticks = 0
@@ -53,12 +66,49 @@ export function splitRow(text) {
   cells.push({ from: start, to: text.length })
   // Leading and trailing pipes are optional and don't start cells.
   if (text.slice(cells[0].from, cells[0].to).trim() === "" && /^\s*\|/.test(text)) cells.shift()
-  if (cells.length && text.slice(cells.at(-1).from, cells.at(-1).to).trim() === "" && /\|\s*$/.test(text)) cells.pop()
-  return cells.map(({ from, to }) => {
-    const raw = text.slice(from, to)
-    const lead = raw.length - raw.trimStart().length
-    return { text: raw.trim(), offset: from + lead }
-  })
+  const trailingPipe = cells.length > 0 && text.slice(cells.at(-1).from, cells.at(-1).to).trim() === "" && /\|\s*$/.test(text)
+  if (trailingPipe) cells.pop()
+  return { cells, trailingPipe }
+}
+
+/** The column of the cell at `offset` in a row. */
+export function columnAt(text, offset) {
+  const { cells } = cellBounds(text)
+  const index = cells.findIndex((cell) => offset <= cell.to)
+  return index === -1 ? Math.max(0, cells.length - 1) : index
+}
+
+/**
+ * The change that adds an empty column to the table from `first` to `last`,
+ * after column `after` (the last, if not given), with the cursor in its header.
+ * Rows that are short of cells are filled out first, so the new column lines up.
+ */
+export function addColumn(doc, first, last, after) {
+  const columns = Math.max(1, splitRow(first.text).length)
+  const index = Math.min(after ?? columns - 1, columns - 1)
+  const changes = []
+  let cursor = null
+  for (let n = first.number; n <= last.number; n++) {
+    const line = doc.line(n)
+    const { cells, trailingPipe } = cellBounds(line.text)
+    const blank = n === first.number + 1 ? " --- " : "  "
+    let at, insert
+    if (cells.length > index + 1) {
+      // A pipe follows the cell, so the new one goes just before that pipe.
+      at = cells[index].to
+      insert = "|" + blank
+    } else {
+      // The new cell goes at the end, after any cells this row is missing.
+      const missing = index + 1 - cells.length
+      at = trailingPipe ? cells.at(-1).to : line.text.length
+      insert = "|  ".repeat(missing) + "|" + blank
+      if (!trailingPipe && !line.text.endsWith(" ")) insert = " " + insert
+    }
+    if (n === first.number) cursor = line.from + at + insert.lastIndexOf("|") + 2
+    changes.push({ from: line.from + at, insert })
+  }
+  // Nothing is inserted before the header, so its position holds in the new document.
+  return { changes, selection: { anchor: cursor }, scrollIntoView: true }
 }
 
 export function alignment(cell) {
@@ -211,6 +261,140 @@ class TableWidget extends WidgetType {
   ignoreEvent() { return true }
 }
 
+/**
+ * The change that adds an empty row to the table from `first` to `last`, below
+ * the row at `pos` (or below the header, for the header and separator rows),
+ * with the cursor in its first cell.
+ */
+export function addRow(doc, first, last, pos) {
+  const header = doc.line(first.number)
+  const columns = Math.max(1, splitRow(header.text).length)
+  // Follow the header's style: with or without pipes at the ends.
+  const piped = /^\s*\|/.test(header.text)
+  const cells = Array(columns).fill("  ").join("|")
+  const row = piped ? `|${cells}|` : cells
+  const current = doc.lineAt(Math.min(Math.max(pos, first.from), last.to))
+  const after = current.number <= first.number + 1 ? doc.line(Math.min(first.number + 1, last.number)) : current
+  return {
+    changes: { from: after.to, insert: "\n" + row },
+    // Between the first cell's two spaces, so typing gives `| text |`.
+    selection: { anchor: after.to + 1 + (piped ? 2 : 1) },
+    scrollIntoView: true,
+  }
+}
+
+// While a table's text is being edited, a bar with a "+" runs down its right
+// side to add a column after the cursor's, and one runs along the bottom to add
+// a row below the cursor's, as in Obsidian. The side bar is drawn by the lines
+// themselves (see `.cm-table-edit-line`), so it follows the text as it wraps.
+
+const COLUMN_BAR_PX = 32
+
+/** Adds a row below the cursor's row in the table at `tableFrom`. */
+function addRowAtCursor(view, tableFrom) {
+  const node = tableAt(view.state, tableFrom)
+  const lines = node && tableLines(view.state.doc, node)
+  if (lines) view.dispatch(addRow(view.state.doc, lines.first, lines.last, view.state.selection.main.head))
+}
+
+/** Adds a column after the cursor's column in the table at `tableFrom`. */
+function addColumnAtCursor(view, tableFrom) {
+  const node = tableAt(view.state, tableFrom)
+  const lines = node && tableLines(view.state.doc, node)
+  if (!lines) return
+  const head = view.state.selection.main.head
+  const line = view.state.doc.lineAt(Math.min(Math.max(head, lines.first.from), lines.last.to))
+  view.dispatch(addColumn(view.state.doc, lines.first, lines.last, columnAt(line.text, head - line.from)))
+}
+
+/**
+ * Runs `action` on a tap, taking the tap before the editor sees it so focus,
+ * and the cursor, stay in the table.
+ */
+function onTap(element, action) {
+  let lastTouch = 0
+  element.addEventListener("touchstart", (e) => e.preventDefault(), { passive: false })
+  element.addEventListener("touchend", (e) => { e.preventDefault(); lastTouch = Date.now(); action() })
+  element.addEventListener("mousedown", (e) => e.preventDefault())
+  element.addEventListener("click", (e) => { e.preventDefault(); if (Date.now() - lastTouch > 1000) action() })
+}
+
+/** The bar under a table being edited, which adds a row. */
+class RowBarWidget extends WidgetType {
+  constructor(tableFrom) { super(); this.tableFrom = tableFrom }
+  eq(other) { return other.tableFrom === this.tableFrom }
+
+  toDOM(view) {
+    const bar = document.createElement("div")
+    bar.className = "cm-table-add cm-table-add-row"
+    bar.setAttribute("role", "button")
+    bar.setAttribute("aria-label", "Add Row")
+    bar.textContent = "+"
+    onTap(bar, () => addRowAtCursor(view, this.tableFrom))
+    return bar
+  }
+
+  ignoreEvent() { return true }
+}
+
+/** The start of the table whose text line `line` is, if it's being edited. */
+function editedTableAt(view, line) {
+  if (!line.classList.contains("cm-table-edit-line")) return null
+  const pos = view.posAtDOM(line)
+  const tree = syntaxTree(view.state)
+  for (let node = tree.resolveInner(pos, 1); node; node = node.parent) {
+    if (node.name === "Table") return view.state.doc.lineAt(node.from).from
+  }
+  return null
+}
+
+/** Whether a tap at `x` is on the column bar drawn at the right of `line`. */
+function onColumnBar(line, x) {
+  return x >= line.getBoundingClientRect().right - COLUMN_BAR_PX
+}
+
+/** Taps on the column bar beside a table being edited. */
+const columnBarTaps = (() => {
+  let pending = null
+  const start = (view, event, x) => {
+    const line = event.target.closest?.(".cm-table-edit-line")
+    const tableFrom = line && onColumnBar(line, x) ? editedTableAt(view, line) : null
+    if (tableFrom == null) { pending = null; return false }
+    // Touches are cancelled when they end, as touchstart can't be in a passive listener.
+    if (event.type === "mousedown") event.preventDefault()
+    pending = tableFrom
+    return true
+  }
+  const end = (view, event) => {
+    if (pending == null) return false
+    event.preventDefault()
+    const tableFrom = pending
+    pending = null
+    addColumnAtCursor(view, tableFrom)
+    return true
+  }
+  return EditorView.domEventHandlers({
+    touchstart: (event, view) => start(view, event, event.touches[0]?.clientX ?? 0),
+    touchend: (event, view) => end(view, event),
+    touchmove: () => { pending = null; return false },
+    mousedown: (event, view) => start(view, event, event.clientX),
+    mouseup: (event, view) => end(view, event),
+  })
+})()
+
+/** The table node starting at `from`. */
+function tableAt(state, from) {
+  let found = null
+  syntaxTree(state).iterate({
+    from, to: from,
+    enter(node) {
+      if (node.name === "Table" && state.doc.lineAt(node.from).from === from) found = node.node
+      return !found
+    },
+  })
+  return found
+}
+
 let linksVersion = 0
 
 function buildTables(state) {
@@ -224,14 +408,25 @@ function buildTables(state) {
       if (!lines) return false
       const { first, last } = lines
       const editing = focused && state.selection.ranges.some((r) => r.from <= last.to && r.to >= first.from)
-      if (!editing) {
+      if (editing) {
+        // Each line draws its part of the column bar; the middle one shows the "+".
+        const middle = Math.floor((first.number + last.number) / 2)
+        for (let n = first.number; n <= last.number; n++) {
+          const classes = ["cm-table-edit-line"]
+          if (n === first.number) classes.push("cm-table-edit-first")
+          if (n === last.number) classes.push("cm-table-edit-last")
+          if (n === middle) classes.push("cm-table-edit-plus")
+          decos.push(Decoration.line({ class: classes.join(" ") }).range(doc.line(n).from))
+        }
+        decos.push(Decoration.widget({ widget: new RowBarWidget(first.from), block: true, side: 1 }).range(last.to))
+      } else {
         const widget = new TableWidget(doc.sliceString(first.from, last.to), linksVersion)
         decos.push(Decoration.replace({ widget, block: true }).range(first.from, last.to))
       }
       return false
     },
   })
-  return Decoration.set(decos)
+  return Decoration.set(decos, true)
 }
 
 const tablesField = StateField.define({
@@ -252,4 +447,5 @@ export const tablePreview = [
   focusedField,
   EditorView.focusChangeEffect.of((_, focusing) => setFocused.of(focusing)),
   tablesField,
+  columnBarTaps,
 ]
