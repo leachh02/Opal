@@ -74,7 +74,7 @@ I built Opal to scratch my own itch, but if you've found it useful and want to h
 
 ## License
 
-MIT © Harrison Leach
+MIT © Harrison Leach. See [LICENSE](LICENSE).
 
 ---
 
