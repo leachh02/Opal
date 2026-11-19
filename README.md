@@ -119,13 +119,6 @@ I built Opal to scratch my own itch, but if you've found it useful and want to h
 
 ---
 
-## Roadmap
-
-- [ ] Multiple vault support
-- [ ] iPad layout
-
----
-
 ## License
 
 MIT © Harrison Leach. See [LICENSE](LICENSE).
