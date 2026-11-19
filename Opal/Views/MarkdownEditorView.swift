@@ -33,6 +33,8 @@ struct MarkdownEditorView: View {
     @State private var lastKnownWriteTime: Date?
     @State private var isSaving = false
     @State private var hasConflict = false
+    /// How many places a merge couldn't combine, to tell the user about.
+    @State private var mergeConflicts = 0
     @State private var autosaveTask: Task<Void, Never>?
     @State private var linkedNote: NoteLink?
     /// The name of a `[[link]]` that was tapped but has no note yet.
@@ -120,6 +122,9 @@ struct MarkdownEditorView: View {
             Text(errorMessage ?? "")
         }
         .alert("Note changed on the server", isPresented: $hasConflict) {
+            Button("Merge") {
+                Task { await mergeServerChanges() }
+            }
             Button("Overwrite", role: .destructive) {
                 Task { await save(overwritingServerChanges: true) }
             }
@@ -128,7 +133,14 @@ struct MarkdownEditorView: View {
             }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("This note was edited somewhere else since you opened it.")
+            Text("This note was edited somewhere else since you opened it. Merge brings in those changes and keeps yours.")
+        }
+        .alert("Some lines were changed in both places", isPresented: Binding(get: { mergeConflicts > 0 }, set: { if !$0 { mergeConflicts = 0 } })) {
+            Button("OK") {}
+        } message: {
+            Text(mergeConflicts == 1
+                 ? "Both versions are in the note, your edits first, between “<<<<<<<” and “>>>>>>>”. Keep what you want and delete the rest."
+                 : "\(mergeConflicts) places have both versions in the note, your edits first, between “<<<<<<<” and “>>>>>>>”. Keep what you want and delete the rest.")
         }
         .alert(
             "“\(missingNote ?? "")” doesn't exist yet",
@@ -201,6 +213,40 @@ struct MarkdownEditorView: View {
 
         // Edits made while the upload was in flight still need saving.
         if editor.text != savedText { scheduleAutosave() }
+    }
+
+    /// Combines the edits made here with the server's version, then saves the result.
+    private func mergeServerChanges() async {
+        guard !isSaving else { return }
+        isSaving = true
+        let mine = await editor.currentContent()
+        let theirs: String
+        let modified: Date
+        do {
+            modified = try await vault.store.metadata(path).modified
+            let data = try await vault.store.read(path)
+            guard let text = String(data: data, encoding: .utf8) else {
+                isSaving = false
+                errorMessage = "The server's copy isn't UTF-8 text, so Opal can't merge it."
+                return
+            }
+            theirs = text
+        } catch {
+            isSaving = false
+            errorMessage = "Couldn't merge: \(error.localizedDescription)"
+            return
+        }
+
+        let merged = TextMerge.merge(base: savedText, mine: mine, theirs: theirs)
+        // The server's version is now what the note was loaded as, so the next
+        // save only conflicts if it changes again.
+        savedText = theirs
+        lastKnownWriteTime = modified
+        editor.setContent(merged.text)
+        isSaving = false
+        hasConflict = false
+        mergeConflicts = merged.conflicts
+        await save()
     }
 
     private func pushLinkTargets() {

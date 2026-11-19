@@ -248,6 +248,10 @@ function buildDecorations(view) {
             lineClass(node.from, node.to, "cm-frontmatter")
             return false
 
+          case "ConflictMarker":
+            lineClass(node.from, node.to, "cm-conflict-marker")
+            return false
+
           case "HeaderMark": {
             if (active) return
             const isSetext = node.parent?.name.startsWith("Setext")

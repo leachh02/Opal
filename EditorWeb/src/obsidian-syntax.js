@@ -1,5 +1,6 @@
 // Lezer Markdown extensions for Obsidian-specific syntax: YAML frontmatter,
-// [[wikilinks]], ![[embeds]], ==highlights== and #tags.
+// [[wikilinks]], ![[embeds]], ==highlights== and #tags. Also the markers a
+// merge leaves where both sides changed the same lines.
 
 import { styleTags, tags as t } from "@lezer/highlight"
 
@@ -27,6 +28,27 @@ const Frontmatter = {
     },
   }],
   props: [styleTags({ Frontmatter: t.meta })],
+}
+
+// `<<<<<<< Your edits`, `=======` and `>>>>>>> Other edits`, as git writes them.
+// Without this, `=======` would turn the line above into a heading and
+// `>>>>>>>` would be a quote.
+const CONFLICT_MARKER_RE = /^(?:(?:<{7}|>{7})(?:[ \t].*)?|={7}[ \t]*)$/
+
+const ConflictMarkers = {
+  defineNodes: [{ name: "ConflictMarker", block: true }],
+  parseBlock: [{
+    name: "ConflictMarker",
+    before: "Blockquote",
+    parse(cx, line) {
+      if (line.indent > 0 || !CONFLICT_MARKER_RE.test(line.text)) return false
+      cx.addElement(cx.elt("ConflictMarker", cx.lineStart, cx.lineStart + line.text.length))
+      cx.nextLine()
+      return true
+    },
+    endLeaf: (cx, line) => line.indent === 0 && CONFLICT_MARKER_RE.test(line.text),
+  }],
+  props: [styleTags({ ConflictMarker: t.meta })],
 }
 
 function bracketLink(name, prefix) {
@@ -97,4 +119,4 @@ const Tags = {
   props: [styleTags({ Tag: t.labelName })],
 }
 
-export const obsidianSyntax = [Frontmatter, WikiLinks, Highlight, Tags]
+export const obsidianSyntax = [Frontmatter, ConflictMarkers, WikiLinks, Highlight, Tags]

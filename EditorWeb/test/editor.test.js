@@ -70,6 +70,27 @@ describe("link resolution", () => {
   })
 })
 
+describe("merge conflict markers", () => {
+  function nodeNames(text) {
+    const state = EditorState.create({ doc: text, extensions: [markdown({ base: markdownLanguage, extensions: obsidianSyntax })] })
+    const names = []
+    ensureSyntaxTree(state, state.doc.length, 5000).iterate({ enter: (node) => { names.push(node.name) } })
+    return names
+  }
+
+  test("aren't read as a heading or a quote", () => {
+    const names = nodeNames("Before\n<<<<<<< Your edits\nmine\n=======\ntheirs\n>>>>>>> Other edits\nAfter")
+    assert.equal(names.filter((name) => name === "ConflictMarker").length, 3)
+    assert.ok(!names.some((name) => /Heading|Blockquote/.test(name)))
+  })
+
+  test("only whole marker lines count", () => {
+    const names = nodeNames("Title\n========\n\n>>> quoted")
+    assert.ok(!names.includes("ConflictMarker"))
+    assert.ok(names.includes("SetextHeading1"))
+  })
+})
+
 describe("adding table rows", () => {
   /** Adds a row with the cursor at `marker`'s position, returning the text with `^` at the new cursor. */
   function add(text) {
