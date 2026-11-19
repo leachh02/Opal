@@ -14,6 +14,18 @@
 
 ---
 
+## Screenshots
+
+<p>
+  <img src="docs/screenshots/vault.png" width="19%" alt="The vault's folders and notes">
+  <img src="docs/screenshots/note.png" width="19%" alt="A note in live preview with a callout, wikilinks, tags and tasks">
+  <img src="docs/screenshots/table.png" width="19%" alt="A table drawn as a grid">
+  <img src="docs/screenshots/table-editing.png" width="19%" alt="Editing a table, with bars to add a row or column">
+  <img src="docs/screenshots/search.png" width="19%" alt="Searching the vault's files by name">
+</p>
+
+---
+
 ## Getting Started
 
 ### Requirements
